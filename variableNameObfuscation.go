@@ -1,0 +1,60 @@
+package main
+
+import (
+	"fmt"
+	"regexp"
+)
+
+func getVarNames(jsonAST map[string]interface{}) []string {
+
+	nodes := jsonAST["nodes"]
+	namesList := make([]string, 0)
+	namesList = storeVarNames(nodes, namesList)
+	fmt.Println(namesList)
+	return namesList
+}
+
+func storeVarNames(node interface{}, namesList []string) []string {
+	switch node.(type) {
+	case []interface{}:
+		nodeArr := node.([]interface{})
+		for _, element := range nodeArr {
+			namesList = storeVarNames(element, namesList)
+		}
+	case map[string]interface{}:
+		nodeMap := node.(map[string]interface{})
+		for key, value := range nodeMap {
+			if key == "nodeType" && value == "VariableDeclaration" {
+				if name, ok := nodeMap["name"]; ok {
+					namesList = append(namesList, name.(string))
+				}
+			} else {
+				_, okArr := value.([]interface{})
+				_, okMap := value.(map[string]interface{})
+
+				if okArr || okMap {
+					namesList = storeVarNames(value, namesList)
+				}
+			}
+		}
+	}
+
+	return namesList
+}
+
+func replaceVarNames(namesList []string, sourceString string) string {
+
+	var newVarName string = "_"
+	nameIsUsed := make(map[string]bool)
+
+	for _, name := range namesList {
+		if !nameIsUsed[name] {
+			re, _ := regexp.Compile("\\b" + name + "\\b")
+			sourceString = re.ReplaceAllString(sourceString, newVarName)
+			nameIsUsed[name] = true
+			newVarName += "_"
+		}
+	}
+
+	return sourceString
+}
