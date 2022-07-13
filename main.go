@@ -23,7 +23,7 @@ func main() {
 	namesList := getVarNames(result)
 
 	sourceFile, errSource := os.Open("../contract_examples/contract_example_0813_2.sol")
-	defer jsonFile.Close()
+	defer sourceFile.Close()
 	if errSource != nil {
 		fmt.Println(errSource)
 		return
@@ -33,6 +33,17 @@ func main() {
 	sourceString := string(byteValue)
 
 	sourceString = replaceVarNames(namesList, sourceString)
-	fmt.Println(sourceString)
+	//fmt.Println(sourceString)
+
+	sourceString = replaceComments(sourceString)
+
+	outputFile, errOutput := os.Create("../contract_examples/obfuscated.sol")
+	defer outputFile.Close()
+	if errOutput != nil {
+		fmt.Println(errOutput)
+		return
+	}
+
+	outputFile.WriteString(sourceString)
 
 }
