@@ -44,7 +44,8 @@ func storeVarNames(node interface{}, namesList []string) []string {
 
 func replaceVarNames(namesList []string, sourceString string) string {
 
-	var newVarName string = "_"
+	// starting name can not be one dash, since that is a reserved name
+	var newVarName string = "__"
 	nameIsUsed := make(map[string]bool)
 
 	for _, name := range namesList {
