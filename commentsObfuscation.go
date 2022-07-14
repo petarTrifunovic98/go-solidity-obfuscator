@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"regexp"
 )
 
@@ -11,16 +12,18 @@ func replaceComments(sourceString string) string {
 	reStartBlock, _ := regexp.Compile("/\\*")
 	reEndBlock, _ := regexp.Compile("\\*/")
 
-	blockStart := reStartBlock.FindStringIndex(sourceString)
-	blockEnd := reEndBlock.FindStringIndex(sourceString)
+	blockStarts := reStartBlock.FindAllStringIndex(sourceString, -1)
+	blockEnds := reEndBlock.FindAllStringIndex(sourceString, -1)
 
-	for blockStart != nil && blockEnd != nil {
-		sourceString = sourceString[:blockStart[0]] + sourceString[blockEnd[1]:]
-		blockStart = reStartBlock.FindStringIndex(sourceString)
-		blockEnd = reEndBlock.FindStringIndex(sourceString)
+	fmt.Println(blockStarts)
+	fmt.Println(blockEnds)
+
+	stringReduction := 0
+
+	for i := 0; i < len(blockStarts); i++ {
+		sourceString = sourceString[:blockStarts[i][0]-stringReduction] + sourceString[blockEnds[i][1]-stringReduction:]
+		stringReduction += blockEnds[i][1] - blockStarts[i][0]
 	}
-
-	//#TODO - change to use FindAllStringIndex
 
 	return sourceString
 }
