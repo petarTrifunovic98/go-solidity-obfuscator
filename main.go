@@ -17,10 +17,8 @@ func main() {
 	}
 
 	byteValue, _ := ioutil.ReadAll(jsonFile)
-	var result map[string]interface{}
-	json.Unmarshal([]byte(byteValue), &result)
-
-	namesList := getVarNames(result)
+	var jsonStringMap map[string]interface{}
+	json.Unmarshal([]byte(byteValue), &jsonStringMap)
 
 	sourceFile, errSource := os.Open("../contract_examples/contract_example_0813_2.sol")
 	defer sourceFile.Close()
@@ -29,6 +27,9 @@ func main() {
 		return
 	}
 
+	namesList := getVarNames(jsonStringMap)
+	literalsList := getLiterals(jsonStringMap)
+
 	byteValue, _ = ioutil.ReadAll(sourceFile)
 	sourceString := string(byteValue)
 
@@ -36,6 +37,7 @@ func main() {
 	//fmt.Println(sourceString)
 
 	sourceString = replaceComments(sourceString)
+	sourceString = replaceLiterals(literalsList, sourceString)
 
 	outputFile, errOutput := os.Create("../contract_examples/obfuscated.sol")
 	defer outputFile.Close()
@@ -45,5 +47,6 @@ func main() {
 	}
 
 	outputFile.WriteString(sourceString)
+	//generateTargetAST(12)
 
 }
