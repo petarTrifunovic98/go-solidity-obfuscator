@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"regexp"
 )
 
@@ -14,9 +13,6 @@ func replaceComments(sourceString string) string {
 
 	blockStarts := reStartBlock.FindAllStringIndex(sourceString, -1)
 	blockEnds := reEndBlock.FindAllStringIndex(sourceString, -1)
-
-	fmt.Println(blockStarts)
-	fmt.Println(blockEnds)
 
 	stringReduction := 0
 
