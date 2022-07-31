@@ -33,9 +33,9 @@ func main() {
 	byteValue, _ = ioutil.ReadAll(sourceFile)
 	sourceString := string(byteValue)
 
-	sourceString = replaceVarNames(namesList, sourceString)
-	//fmt.Println(sourceString)
+	fmt.Println(findFunctionDefinition(sourceString, jsonStringMap, "privateFunc"))
 
+	sourceString = replaceVarNames(namesList, sourceString)
 	sourceString = replaceComments(sourceString)
 	sourceString = replaceLiterals(literalsList, sourceString)
 
