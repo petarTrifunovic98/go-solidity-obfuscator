@@ -18,6 +18,7 @@ type FunctionCall struct {
 	name          string
 	args          []string
 	indexInSource int
+	callLen       int
 }
 
 func getCalledFunctionsNames(jsonAST map[string]interface{}, sourceString string) []*FunctionCall {
@@ -44,11 +45,14 @@ func storeCalledFunctions(node interface{}, functionsCalls []*FunctionCall, sour
 				functionName := expressionNodeMap["name"].(string)
 				argsList := findFunctionCallArgumentValues(nodeMap, sourceString)
 				functionSrc := nodeMap["src"].(string)
-				functionStartIndex, _ := strconv.Atoi(strings.Split(functionSrc, ":")[0])
+				functionSrcParts := strings.Split(functionSrc, ":")
+				functionStartIndex, _ := strconv.Atoi(functionSrcParts[0])
+				functionCallLen, _ := strconv.Atoi(functionSrcParts[1])
 				functionCall := FunctionCall{
 					name:          functionName,
 					args:          argsList,
 					indexInSource: functionStartIndex,
+					callLen:       functionCallLen,
 				}
 				functionsCalls = append(functionsCalls, &functionCall)
 
@@ -186,7 +190,7 @@ func extractFunctionDefinition(node interface{}, functionName string, sourceStri
 	return &functionDefinition
 }
 
-func replaceFunctionParametersForArguments(functionDefinition *FunctionDefinition, functionArguments []string) string {
+func replaceFunctionParametersWithArguments(functionDefinition *FunctionDefinition, functionArguments []string) {
 	body := functionDefinition.body
 	parameters := functionDefinition.parameterNames
 
@@ -197,7 +201,47 @@ func replaceFunctionParametersForArguments(functionDefinition *FunctionDefinitio
 		i++
 	}
 
-	return body
+	functionDefinition.body = body
+}
+
+func replaceReturnStmtWithVariables(functionDefinition *FunctionDefinition) {
+	body := functionDefinition.body
+	retParameterTypes := functionDefinition.retParameterTypes
+	re, _ := regexp.Compile("\\breturn\\b")
+	retStmtIndexes := re.FindAllStringIndex(body, -1)
+	if retStmtIndexes == nil {
+		return
+	}
+
+	currentVarName := "__"
+	stringIncrease := 0
+	var insertString string
+
+	for _, indexPair := range retStmtIndexes {
+		retStmtStartIndex := indexPair[0]
+		retStmtEndIndex := retStmtStartIndex
+		for body[retStmtEndIndex] != ';' {
+			retStmtEndIndex++
+		}
+
+		retValuesList := strings.Split(body[retStmtStartIndex+len("return")+stringIncrease:retStmtEndIndex+stringIncrease], ",;")
+
+		if len(retValuesList) > 0 {
+			insertString = "\n{\n"
+			for i := 0; i < len(retValuesList); i++ {
+				retValue := strings.Trim(retValuesList[i], " \t\n")
+				insertString += retParameterTypes[i] + " " + currentVarName + " = " + retValue + ";\n"
+				currentVarName += "_"
+			}
+			insertString += "}\n"
+		}
+
+		body = body[:retStmtStartIndex+stringIncrease] + insertString + body[retStmtEndIndex+stringIncrease+1:]
+		stringIncrease += len(insertString)
+
+	}
+	functionDefinition.body = body
+
 }
 
 func manipulateCalledFunctionsBodies(jsonAST map[string]interface{}, sourceString string) map[string][]string {
@@ -206,7 +250,7 @@ func manipulateCalledFunctionsBodies(jsonAST map[string]interface{}, sourceStrin
 	functionCalls := make([]*FunctionCall, 0)
 	functionCalls = storeCalledFunctions(nodes, functionCalls, sourceString)
 
-	extractedFunctionDefinitions := make(map[string]*FunctionDefinition, 0)
+	//extractedFunctionDefinitions := make(map[string]*FunctionDefinition, 0)
 
 	newFuncBodies := make(map[string][]string, 0)
 
@@ -226,27 +270,34 @@ func manipulateCalledFunctionsBodies(jsonAST map[string]interface{}, sourceStrin
 	originalSourceString := sb.String()
 
 	for _, functionCall := range functionCalls {
-		functionDef, exists := extractedFunctionDefinitions[functionCall.name]
-		if !exists {
-			functionDef = extractFunctionDefinition(nodes, functionCall.name, originalSourceString)
-		}
+		//functionDef, exists := extractedFunctionDefinitions[functionCall.name]
+		//if !exists {
+		functionDef := extractFunctionDefinition(nodes, functionCall.name, originalSourceString)
+		//}
 		if functionDef != nil {
-			body := replaceFunctionParametersForArguments(functionDef, functionCall.args)
-			fmt.Print(functionDef)
-			fmt.Print(" : ")
-			fmt.Println(functionCall.args)
-			newFuncBodies[functionCall.name] = append(newFuncBodies[functionCall.name], body)
+			replaceFunctionParametersWithArguments(functionDef, functionCall.args)
+			replaceReturnStmtWithVariables(functionDef)
+			newFuncBodies[functionCall.name] = append(newFuncBodies[functionCall.name], functionDef.body)
 
-			i := functionCall.indexInSource + stringIndexIncrease
-			for sourceString[i] != ';' && sourceString[i] != '{' {
+			funcCallStart := functionCall.indexInSource
+			funcCallEnd := functionCall.indexInSource + functionCall.callLen
+
+			i := funcCallStart + stringIndexIncrease
+			for sourceString[i] != ';' && sourceString[i] != '{' && sourceString[i] != '}' {
 				i--
 			}
-			sourceString = sourceString[:i+1] + "\n" + body + sourceString[i+1:]
-			stringIndexIncrease += len(body) + 1
+			sourceString = sourceString[:i+1] + "\n" + functionDef.body + sourceString[i+1:]
+			stringIndexIncrease += len(functionDef.body) + 1
+
+			sourceString = sourceString[:funcCallStart+stringIndexIncrease] + "__" + sourceString[funcCallEnd+stringIndexIncrease:]
+			fmt.Println(funcCallStart + stringIndexIncrease)
+			stringIndexIncrease += len("__") - functionCall.callLen
+
 		}
 	}
 
 	fmt.Println(sourceString)
+	//fmt.Println(newFuncBodies)
 
 	return newFuncBodies
 
