@@ -244,7 +244,7 @@ func replaceReturnStmtWithVariables(functionDefinition *FunctionDefinition) {
 
 }
 
-func manipulateCalledFunctionsBodies(jsonAST map[string]interface{}, sourceString string) map[string][]string {
+func manipulateCalledFunctionsBodies(jsonAST map[string]interface{}, sourceString string) string {
 
 	nodes := jsonAST["nodes"]
 	functionCalls := make([]*FunctionCall, 0)
@@ -264,7 +264,7 @@ func manipulateCalledFunctionsBodies(jsonAST map[string]interface{}, sourceStrin
 	if _, err := sb.WriteString(sourceString); err != nil {
 		fmt.Println("error copying string!")
 		fmt.Println(err)
-		return nil
+		return ""
 	}
 
 	originalSourceString := sb.String()
@@ -296,9 +296,6 @@ func manipulateCalledFunctionsBodies(jsonAST map[string]interface{}, sourceStrin
 		}
 	}
 
-	fmt.Println(sourceString)
-	//fmt.Println(newFuncBodies)
-
-	return newFuncBodies
+	return sourceString
 
 }
