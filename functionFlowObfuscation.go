@@ -9,8 +9,9 @@ import (
 )
 
 type FunctionDefinition struct {
-	body           string
-	parameterNames []string
+	body              string
+	parameterNames    []string
+	retParameterTypes []string
 }
 
 type FunctionCall struct {
@@ -133,6 +134,21 @@ func findFunctionParametersNames(functionDefinitionNode map[string]interface{}) 
 	return parameterNamesList
 }
 
+func findFunctionRetParameterTypes(functionDefinitionNode map[string]interface{}) []string {
+	retParametersField := functionDefinitionNode["returnParameters"].(map[string]interface{})
+	retParametersList := retParametersField["parameters"]
+
+	retParametersTypesList := make([]string, 0)
+
+	for _, retParameterInterface := range retParametersList.([]interface{}) {
+		retParameterMap := retParameterInterface.(map[string]interface{})
+		retParameterTypeDesc := retParameterMap["typeDescriptions"].(map[string]interface{})
+		retParametersTypesList = append(retParametersTypesList, retParameterTypeDesc["typeString"].(string))
+	}
+
+	return retParametersTypesList
+}
+
 func findFunctionCallArgumentValues(functionCallNodeMap map[string]interface{}, sourceString string) []string {
 	argumentsList := functionCallNodeMap["arguments"].([]interface{})
 
@@ -159,10 +175,12 @@ func extractFunctionDefinition(node interface{}, functionName string, sourceStri
 
 	body := findFunctionDefinitionBody(functionDefinitionNode, sourceString)
 	parametersNames := findFunctionParametersNames(functionDefinitionNode)
+	retParametersNames := findFunctionRetParameterTypes(functionDefinitionNode)
 
 	functionDefinition := FunctionDefinition{
-		body:           body,
-		parameterNames: parametersNames,
+		body:              body,
+		parameterNames:    parametersNames,
+		retParameterTypes: retParametersNames,
 	}
 
 	return &functionDefinition
