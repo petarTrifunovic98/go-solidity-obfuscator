@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
 	"regexp"
 	"strconv"
@@ -34,13 +33,9 @@ func (node OperandASTNode) getValue() int {
 
 	if node.operator == "+" {
 		ret := node.left.getValue() + node.right.getValue()
-		// fmt.Println("Operand value +: ")
-		// fmt.Println(ret)
 		return ret
 	} else {
 		ret := node.left.getValue() * node.right.getValue()
-		// fmt.Println("Operand value *: ")
-		// fmt.Println(ret)
 		return ret
 	}
 }
@@ -56,8 +51,6 @@ func (node OperandASTNode) toString() string {
 }
 
 func (node ValueASTNode) getValue() int {
-	// fmt.Print("\nValue ")
-	// fmt.Println(node.value)
 	return node.value
 }
 
@@ -72,7 +65,6 @@ func generateTargetAST(target int) IntegerASTNode {
 	randomGenerator := rand.New(randomSeeder)
 
 	numOperands := randomGenerator.Intn(10) + 5
-	fmt.Println(numOperands)
 
 	numMultiplications := 0
 	var operator string
@@ -139,7 +131,6 @@ func getLiterals(jsonAST map[string]interface{}) []string {
 	nodes := jsonAST["nodes"]
 	literalsList := make([]string, 0)
 	literalsList = storeLiterals(nodes, literalsList)
-	fmt.Println(literalsList)
 	return literalsList
 }
 

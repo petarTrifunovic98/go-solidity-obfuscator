@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"regexp"
 )
 
@@ -10,7 +9,6 @@ func getVarNames(jsonAST map[string]interface{}) []string {
 	nodes := jsonAST["nodes"]
 	namesList := make([]string, 0)
 	namesList = storeVarNames(nodes, namesList)
-	fmt.Println(namesList)
 	return namesList
 }
 
@@ -25,7 +23,7 @@ func storeVarNames(node interface{}, namesList []string) []string {
 		nodeMap := node.(map[string]interface{})
 		for key, value := range nodeMap {
 			if key == "nodeType" && value == "VariableDeclaration" {
-				if name, ok := nodeMap["name"]; ok {
+				if name, ok := nodeMap["name"]; ok && name.(string) != "" {
 					namesList = append(namesList, name.(string))
 				}
 			} else {
@@ -55,6 +53,7 @@ func replaceVarNames(namesList []string, sourceString string) string {
 			nameIsUsed[name] = true
 			newVarName += "_"
 		}
+
 	}
 
 	return sourceString
