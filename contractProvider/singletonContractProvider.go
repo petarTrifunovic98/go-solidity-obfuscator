@@ -3,28 +3,30 @@ package contractprovider
 import (
 	"fmt"
 	"solidity-obfuscator/helpers"
+	"strings"
 	"sync"
 )
 
 type solidityContract struct {
-	sourceCode     string
-	jsonCompactAST map[string]interface{}
+	originalSourceCode string
+	sourceCode         string
+	jsonCompactAST     map[string]interface{}
 }
 
 var once sync.Once
 var instance *solidityContract
 
-func SolidityContractInstance(sourceCodePath string, jsonCompactASTPath string) *solidityContract {
+func SolidityContractInstance() *solidityContract {
 	once.Do(func() {
 
-		configFile, errConfig := helpers.ReadJsonToMap("../config/config.json")
+		configFile, errConfig := helpers.ReadJsonToMap("./config/config.json")
 		if errConfig != nil {
 			fmt.Println(errConfig)
 			instance = nil
 			return
 		}
 
-		sourceCodeString, errSource := helpers.ReadFileToString(configFile[sourceCodePath].(string))
+		sourceCodeString, errSource := helpers.ReadFileToString(configFile["sourceCodePath"].(string))
 		if errSource != nil {
 			fmt.Println(errSource)
 			instance = nil
@@ -39,10 +41,42 @@ func SolidityContractInstance(sourceCodePath string, jsonCompactASTPath string) 
 		}
 
 		instance = &solidityContract{
-			sourceCode:     sourceCodeString,
-			jsonCompactAST: jsonCompactASTString,
+			originalSourceCode: sourceCodeString,
+			sourceCode:         sourceCodeString,
+			jsonCompactAST:     jsonCompactASTString,
 		}
 	})
 
 	return instance
+}
+
+func (s *solidityContract) GetOriginalSourceCode() string {
+	var sb strings.Builder
+	if _, err := sb.WriteString(s.originalSourceCode); err != nil {
+		fmt.Println("error copying string!")
+		fmt.Println(err)
+		return ""
+	}
+
+	return sb.String()
+}
+
+func (s *solidityContract) GetSourceCode() string {
+	var sb strings.Builder
+	if _, err := sb.WriteString(s.sourceCode); err != nil {
+		fmt.Println("error copying string!")
+		fmt.Println(err)
+		return ""
+	}
+
+	return sb.String()
+}
+
+func (s *solidityContract) GetJsonCompactAST() map[string]interface{} {
+	return s.jsonCompactAST
+}
+
+func (s *solidityContract) SetSourceCode(newSourceCode string) {
+	//possibly add mutex here, and waitgroups for getters, if this turns into a concurrent program
+	s.sourceCode = newSourceCode
 }
