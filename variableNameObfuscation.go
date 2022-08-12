@@ -2,10 +2,10 @@ package main
 
 import (
 	"regexp"
+	contractprovider "solidity-obfuscator/contractProvider"
 )
 
 func getVarNames(jsonAST map[string]interface{}) []string {
-
 	nodes := jsonAST["nodes"]
 	namesList := make([]string, 0)
 	namesList = storeVarNames(nodes, namesList)
@@ -40,7 +40,12 @@ func storeVarNames(node interface{}, namesList []string) []string {
 	return namesList
 }
 
-func replaceVarNames(namesList []string, sourceString string) string {
+func ReplaceVarNames() string {
+
+	contract := contractprovider.SolidityContractInstance()
+	jsonAST := contract.GetJsonCompactAST()
+	sourceCodeString := contract.GetSourceCode()
+	namesList := getVarNames(jsonAST)
 
 	// starting name can not be one dash, since that is a reserved name
 	var newVarName string = "__"
@@ -49,12 +54,13 @@ func replaceVarNames(namesList []string, sourceString string) string {
 	for _, name := range namesList {
 		if !nameIsUsed[name] {
 			re, _ := regexp.Compile("\\b" + name + "\\b")
-			sourceString = re.ReplaceAllString(sourceString, newVarName)
+			sourceCodeString = re.ReplaceAllString(sourceCodeString, newVarName)
 			nameIsUsed[name] = true
 			newVarName += "_"
 		}
-
 	}
 
-	return sourceString
+	contract.SetSourceCode(sourceCodeString)
+
+	return sourceCodeString
 }

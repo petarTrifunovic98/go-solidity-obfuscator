@@ -2,24 +2,30 @@ package main
 
 import (
 	"regexp"
+	contractprovider "solidity-obfuscator/contractProvider"
 )
 
-func replaceComments(sourceString string) string {
+func ReplaceComments() string {
+	contract := contractprovider.SolidityContractInstance()
+	sourceCodeString := contract.GetSourceCode()
+
 	re, _ := regexp.Compile("//(.*)(\n)")
-	sourceString = re.ReplaceAllString(sourceString, "\n")
+	sourceCodeString = re.ReplaceAllString(sourceCodeString, "\n")
 
 	reStartBlock, _ := regexp.Compile("/\\*")
 	reEndBlock, _ := regexp.Compile("\\*/")
 
-	blockStarts := reStartBlock.FindAllStringIndex(sourceString, -1)
-	blockEnds := reEndBlock.FindAllStringIndex(sourceString, -1)
+	blockStarts := reStartBlock.FindAllStringIndex(sourceCodeString, -1)
+	blockEnds := reEndBlock.FindAllStringIndex(sourceCodeString, -1)
 
 	stringReduction := 0
 
 	for i := 0; i < len(blockStarts); i++ {
-		sourceString = sourceString[:blockStarts[i][0]-stringReduction] + sourceString[blockEnds[i][1]-stringReduction:]
+		sourceCodeString = sourceCodeString[:blockStarts[i][0]-stringReduction] + sourceCodeString[blockEnds[i][1]-stringReduction:]
 		stringReduction += blockEnds[i][1] - blockStarts[i][0]
 	}
 
-	return sourceString
+	contract.SetSourceCode(sourceCodeString)
+
+	return sourceCodeString
 }

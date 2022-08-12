@@ -27,17 +27,14 @@ func main() {
 		return
 	}
 
-	namesList := getVarNames(jsonStringMap)
-	literalsList := getLiterals(jsonStringMap)
-
 	byteValue, _ = ioutil.ReadAll(sourceFile)
 	sourceString := string(byteValue)
 
-	manipulateCalledFunctionsBodies(jsonStringMap, sourceString)
+	fmt.Println(manipulateCalledFunctionsBodies())
 
-	sourceString = replaceVarNames(namesList, sourceString)
-	sourceString = replaceComments(sourceString)
-	sourceString = replaceLiterals(literalsList, sourceString)
+	sourceString = ReplaceVarNames()
+	sourceString = ReplaceComments()
+	sourceString = ReplaceLiterals()
 
 	outputFile, errOutput := os.Create("../contract_examples/obfuscated.sol")
 	defer outputFile.Close()

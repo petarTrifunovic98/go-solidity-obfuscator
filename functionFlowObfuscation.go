@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"regexp"
+	contractprovider "solidity-obfuscator/contractProvider"
 	"sort"
 	"strconv"
 	"strings"
@@ -244,14 +245,14 @@ func replaceReturnStmtWithVariables(functionDefinition *FunctionDefinition) {
 
 }
 
-func manipulateCalledFunctionsBodies(jsonAST map[string]interface{}, sourceString string) string {
+func manipulateCalledFunctionsBodies() string {
+
+	contract := contractprovider.SolidityContractInstance()
+	jsonAST := contract.GetJsonCompactAST()
+	sourceCodeString := contract.GetSourceCode()
+	functionCalls := getCalledFunctionsNames(jsonAST, sourceCodeString)
 
 	nodes := jsonAST["nodes"]
-	functionCalls := make([]*FunctionCall, 0)
-	functionCalls = storeCalledFunctions(nodes, functionCalls, sourceString)
-
-	//extractedFunctionDefinitions := make(map[string]*FunctionDefinition, 0)
-
 	newFuncBodies := make(map[string][]string, 0)
 
 	sort.Slice(functionCalls, func(i, j int) bool {
@@ -261,7 +262,7 @@ func manipulateCalledFunctionsBodies(jsonAST map[string]interface{}, sourceStrin
 	stringIndexIncrease := 0
 
 	var sb strings.Builder
-	if _, err := sb.WriteString(sourceString); err != nil {
+	if _, err := sb.WriteString(sourceCodeString); err != nil {
 		fmt.Println("error copying string!")
 		fmt.Println(err)
 		return ""
@@ -283,19 +284,19 @@ func manipulateCalledFunctionsBodies(jsonAST map[string]interface{}, sourceStrin
 			funcCallEnd := functionCall.indexInSource + functionCall.callLen
 
 			i := funcCallStart + stringIndexIncrease
-			for sourceString[i] != ';' && sourceString[i] != '{' && sourceString[i] != '}' {
+			for sourceCodeString[i] != ';' && sourceCodeString[i] != '{' && sourceCodeString[i] != '}' {
 				i--
 			}
-			sourceString = sourceString[:i+1] + "\n" + functionDef.body + sourceString[i+1:]
+			sourceCodeString = sourceCodeString[:i+1] + "\n" + functionDef.body + sourceCodeString[i+1:]
 			stringIndexIncrease += len(functionDef.body) + 1
 
-			sourceString = sourceString[:funcCallStart+stringIndexIncrease] + "__" + sourceString[funcCallEnd+stringIndexIncrease:]
+			sourceCodeString = sourceCodeString[:funcCallStart+stringIndexIncrease] + "__" + sourceCodeString[funcCallEnd+stringIndexIncrease:]
 			fmt.Println(funcCallStart + stringIndexIncrease)
 			stringIndexIncrease += len("__") - functionCall.callLen
 
 		}
 	}
 
-	return sourceString
+	return sourceCodeString
 
 }

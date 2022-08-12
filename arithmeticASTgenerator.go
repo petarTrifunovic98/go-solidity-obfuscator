@@ -3,6 +3,7 @@ package main
 import (
 	"math/rand"
 	"regexp"
+	contractprovider "solidity-obfuscator/contractProvider"
 	"strconv"
 	"time"
 )
@@ -127,7 +128,6 @@ func generateTargetAST(target int) IntegerASTNode {
 }
 
 func getLiterals(jsonAST map[string]interface{}) []string {
-
 	nodes := jsonAST["nodes"]
 	literalsList := make([]string, 0)
 	literalsList = storeLiterals(nodes, literalsList)
@@ -162,14 +162,19 @@ func storeLiterals(node interface{}, literalsList []string) []string {
 	return literalsList
 }
 
-func replaceLiterals(literalsList []string, sourceString string) string {
+func ReplaceLiterals() string {
+
+	contract := contractprovider.SolidityContractInstance()
+	jsonAST := contract.GetJsonCompactAST()
+	sourceCodeString := contract.GetSourceCode()
+	literalsList := getLiterals(jsonAST)
 
 	for _, literal := range literalsList {
 		re, _ := regexp.Compile("\\b" + literal + "\\b")
 		intValue, _ := strconv.Atoi(literal)
 		arithmeticExpr := generateTargetAST(intValue)
-		sourceString = re.ReplaceAllString(sourceString, arithmeticExpr.toString())
+		sourceCodeString = re.ReplaceAllString(sourceCodeString, arithmeticExpr.toString())
 	}
 
-	return sourceString
+	return sourceCodeString
 }
