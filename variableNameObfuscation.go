@@ -3,41 +3,42 @@ package main
 import (
 	"regexp"
 	contractprovider "solidity-obfuscator/contractProvider"
+	processinformation "solidity-obfuscator/processInformation"
 )
 
-func getVarNames(jsonAST map[string]interface{}) []string {
+func getVarNames(jsonAST map[string]interface{}) map[string]struct{} {
 	nodes := jsonAST["nodes"]
-	namesList := make([]string, 0)
-	namesList = storeVarNames(nodes, namesList)
-	return namesList
+	namesSet := make(map[string]struct{}, 0)
+	namesSet = storeVarNames(nodes, namesSet)
+	return namesSet
 }
 
-func storeVarNames(node interface{}, namesList []string) []string {
+func storeVarNames(node interface{}, namesSet map[string]struct{}) map[string]struct{} {
 	switch node.(type) {
 	case []interface{}:
 		nodeArr := node.([]interface{})
 		for _, element := range nodeArr {
-			namesList = storeVarNames(element, namesList)
+			namesSet = storeVarNames(element, namesSet)
 		}
 	case map[string]interface{}:
 		nodeMap := node.(map[string]interface{})
 		for key, value := range nodeMap {
 			if key == "nodeType" && value == "VariableDeclaration" {
-				if name, ok := nodeMap["name"]; ok && name.(string) != "" {
-					namesList = append(namesList, name.(string))
+				if name, ok := nodeMap["name"]; ok && name != "" {
+					namesSet[name.(string)] = struct{}{}
 				}
 			} else {
 				_, okArr := value.([]interface{})
 				_, okMap := value.(map[string]interface{})
 
 				if okArr || okMap {
-					namesList = storeVarNames(value, namesList)
+					namesSet = storeVarNames(value, namesSet)
 				}
 			}
 		}
 	}
 
-	return namesList
+	return namesSet
 }
 
 func ReplaceVarNames() string {
@@ -45,22 +46,30 @@ func ReplaceVarNames() string {
 	contract := contractprovider.SolidityContractInstance()
 	jsonAST := contract.GetJsonCompactAST()
 	sourceCodeString := contract.GetSourceCode()
-	namesList := getVarNames(jsonAST)
+
+	variableInfo := processinformation.VariableInformation()
+	namesSet := variableInfo.GetVariableNamesSet()
+	if namesSet == nil {
+		namesSet = getVarNames(jsonAST)
+		variableInfo.SetVariableNamesSet(namesSet)
+	}
 
 	// starting name can not be one dash, since that is a reserved name
-	var newVarName string = "__"
-	nameIsUsed := make(map[string]bool)
+	var newVarName string = variableInfo.GetLatestDashVariableName() + "_"
+	//nameIsUsed := make(map[string]bool)
 
-	for _, name := range namesList {
-		if !nameIsUsed[name] {
-			re, _ := regexp.Compile("\\b" + name + "\\b")
-			sourceCodeString = re.ReplaceAllString(sourceCodeString, newVarName)
-			nameIsUsed[name] = true
+	//if thread safety is required, change this to always check the latest var name
+	for name := range namesSet {
+		for variableInfo.NameIsUsed(newVarName) {
 			newVarName += "_"
 		}
+		re, _ := regexp.Compile("\\b" + name + "\\b")
+		sourceCodeString = re.ReplaceAllString(sourceCodeString, newVarName)
+		newVarName += "_"
 	}
 
 	contract.SetSourceCode(sourceCodeString)
+	variableInfo.SetLatestDashVariableName(newVarName)
 
 	return sourceCodeString
 }
