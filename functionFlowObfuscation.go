@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	contractprovider "solidity-obfuscator/contractProvider"
+	"solidity-obfuscator/helpers"
+	processinformation "solidity-obfuscator/processInformation"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,6 +22,10 @@ type FunctionCall struct {
 	args          []string
 	indexInSource int
 	callLen       int
+}
+
+type ManipulatedFunction struct {
+	body string
 }
 
 func getCalledFunctionsNames(jsonAST map[string]interface{}, sourceString string) []*FunctionCall {
@@ -191,32 +197,31 @@ func extractFunctionDefinition(node interface{}, functionName string, sourceStri
 	return &functionDefinition
 }
 
-func replaceFunctionParametersWithArguments(functionDefinition *FunctionDefinition, functionArguments []string) {
-	body := functionDefinition.body
-	parameters := functionDefinition.parameterNames
+func (mf *ManipulatedFunction) replaceFunctionParametersWithArguments(functionParameters []string, functionArguments []string) {
+	body := mf.body
 
 	i := 0
-	for _, parameter := range parameters {
+	for _, parameter := range functionParameters {
 		re, _ := regexp.Compile("\\b" + parameter + "\\b")
 		body = re.ReplaceAllString(body, functionArguments[i])
 		i++
 	}
 
-	functionDefinition.body = body
+	mf.body = body
 }
 
-func replaceReturnStmtWithVariables(functionDefinition *FunctionDefinition) {
-	body := functionDefinition.body
-	retParameterTypes := functionDefinition.retParameterTypes
+func (mf *ManipulatedFunction) replaceReturnStmtWithVariables(retVarNames []string, retParameterTypes []string) {
+	body := mf.body
 	re, _ := regexp.Compile("\\breturn\\b")
 	retStmtIndexes := re.FindAllStringIndex(body, -1)
 	if retStmtIndexes == nil {
 		return
 	}
 
-	currentVarName := "__"
 	stringIncrease := 0
+	fullPrependLen := 0
 	var insertString string
+	var prependString string
 
 	for _, indexPair := range retStmtIndexes {
 		retStmtStartIndex := indexPair[0]
@@ -229,23 +234,31 @@ func replaceReturnStmtWithVariables(functionDefinition *FunctionDefinition) {
 
 		if len(retValuesList) > 0 {
 			insertString = "\n{\n"
+			prependString = "\n"
 			for i := 0; i < len(retValuesList); i++ {
 				retValue := strings.Trim(retValuesList[i], " \t\n")
-				insertString += retParameterTypes[i] + " " + currentVarName + " = " + retValue + ";\n"
-				currentVarName += "_"
+
+				retVarDeclaration := retParameterTypes[i] + " " + retVarNames[i] + ";\n"
+				retVarValueAssignment := retVarNames[i] + " = " + retValue + ";\n"
+
+				prependString += retVarDeclaration
+				insertString += retVarValueAssignment
 			}
 			insertString += "}\n"
 		}
 
-		body = body[:retStmtStartIndex+stringIncrease] + insertString + body[retStmtEndIndex+stringIncrease+1:]
-		stringIncrease += len(insertString)
+		body = prependString + body[:retStmtStartIndex+stringIncrease] + insertString + body[retStmtEndIndex+stringIncrease+1:]
+		stringIncrease += len(insertString) + len(prependString)
+		fullPrependLen += len(prependString)
 
 	}
-	functionDefinition.body = body
 
+	body = body[:fullPrependLen] + "\n{\n" + body[fullPrependLen:] + "\n}\n"
+
+	mf.body = body
 }
 
-func manipulateCalledFunctionsBodies() string {
+func ManipulateCalledFunctionsBodies() string {
 
 	contract := contractprovider.SolidityContractInstance()
 	jsonAST := contract.GetJsonCompactAST()
@@ -253,7 +266,6 @@ func manipulateCalledFunctionsBodies() string {
 	functionCalls := getCalledFunctionsNames(jsonAST, sourceCodeString)
 
 	nodes := jsonAST["nodes"]
-	newFuncBodies := make(map[string][]string, 0)
 
 	sort.Slice(functionCalls, func(i, j int) bool {
 		return functionCalls[i].indexInSource < functionCalls[j].indexInSource
@@ -270,15 +282,38 @@ func manipulateCalledFunctionsBodies() string {
 
 	originalSourceString := sb.String()
 
+	variableInfo := processinformation.VariableInformation()
+	namesSet := variableInfo.GetVariableNamesSet()
+	if namesSet == nil {
+		namesSet = getVarNames(jsonAST) //move to another place from VariableNameObfuscation.go
+		variableInfo.SetVariableNamesSet(namesSet)
+	}
+
 	for _, functionCall := range functionCalls {
 		//functionDef, exists := extractedFunctionDefinitions[functionCall.name]
 		//if !exists {
 		functionDef := extractFunctionDefinition(nodes, functionCall.name, originalSourceString)
 		//}
 		if functionDef != nil {
-			replaceFunctionParametersWithArguments(functionDef, functionCall.args)
-			replaceReturnStmtWithVariables(functionDef)
-			newFuncBodies[functionCall.name] = append(newFuncBodies[functionCall.name], functionDef.body)
+
+			manipulatedFunc := ManipulatedFunction{}
+			manipulatedFunc.body, _ = helpers.CopyString(functionDef.body)
+
+			manipulatedFunc.replaceFunctionParametersWithArguments(functionDef.parameterNames, functionCall.args)
+			retVarNames := make([]string, len(functionDef.retParameterTypes))
+
+			newVarName := variableInfo.GetLatestDashVariableName() + "_"
+
+			for i := 0; i < len(functionDef.retParameterTypes); i++ {
+				for variableInfo.NameIsUsed(newVarName) {
+					newVarName += "_"
+				}
+				retVarNames[i] = newVarName
+			}
+			fmt.Println(retVarNames)
+			newVarName += "_"
+
+			manipulatedFunc.replaceReturnStmtWithVariables(retVarNames, functionDef.retParameterTypes)
 
 			funcCallStart := functionCall.indexInSource
 			funcCallEnd := functionCall.indexInSource + functionCall.callLen
@@ -287,15 +322,31 @@ func manipulateCalledFunctionsBodies() string {
 			for sourceCodeString[i] != ';' && sourceCodeString[i] != '{' && sourceCodeString[i] != '}' {
 				i--
 			}
-			sourceCodeString = sourceCodeString[:i+1] + "\n" + functionDef.body + sourceCodeString[i+1:]
-			stringIndexIncrease += len(functionDef.body) + 1
+			sourceCodeString = sourceCodeString[:i+1] + manipulatedFunc.body + sourceCodeString[i+1:]
+			stringIndexIncrease += len(manipulatedFunc.body)
 
-			sourceCodeString = sourceCodeString[:funcCallStart+stringIndexIncrease] + "__" + sourceCodeString[funcCallEnd+stringIndexIncrease:]
-			fmt.Println(funcCallStart + stringIndexIncrease)
-			stringIndexIncrease += len("__") - functionCall.callLen
+			insertString := "("
+			for ind, varName := range retVarNames {
+				fmt.Print(ind)
+				fmt.Println(": " + varName)
 
+				if ind > 0 {
+					insertString += ", "
+				}
+				insertString += varName
+			}
+			insertString += ")"
+
+			sourceCodeString = sourceCodeString[:funcCallStart+stringIndexIncrease] + insertString + sourceCodeString[funcCallEnd+stringIndexIncrease:]
+			stringIndexIncrease += len(insertString) - functionCall.callLen
+
+			variableInfo.SetLatestDashVariableName(newVarName)
 		}
 	}
+
+	contract.SetSourceCode(sourceCodeString)
+
+	fmt.Println(sourceCodeString)
 
 	return sourceCodeString
 

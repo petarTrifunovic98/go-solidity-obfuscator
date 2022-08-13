@@ -13,6 +13,7 @@ func getVarNames(jsonAST map[string]interface{}) map[string]struct{} {
 	return namesSet
 }
 
+//maybe move this function fo variableInformation
 func storeVarNames(node interface{}, namesSet map[string]struct{}) map[string]struct{} {
 	switch node.(type) {
 	case []interface{}:
