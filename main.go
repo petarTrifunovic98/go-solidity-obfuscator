@@ -30,8 +30,7 @@ func main() {
 	byteValue, _ = ioutil.ReadAll(sourceFile)
 	sourceString := string(byteValue)
 
-	fmt.Println(manipulateCalledFunctionsBodies())
-
+	sourceString = ManipulateCalledFunctionsBodies()
 	sourceString = ReplaceVarNames()
 	sourceString = ReplaceComments()
 	sourceString = ReplaceLiterals()
