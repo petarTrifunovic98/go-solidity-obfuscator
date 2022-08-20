@@ -28,20 +28,20 @@ type ManipulatedFunction struct {
 	body string
 }
 
-func getCalledFunctionsNames(jsonAST map[string]interface{}, sourceString string) []*FunctionCall {
+func getFunctionCalls(jsonAST map[string]interface{}, sourceString string) []*FunctionCall {
 
 	nodes := jsonAST["nodes"]
 	functionsCalls := make([]*FunctionCall, 0)
-	functionsCalls = storeCalledFunctions(nodes, functionsCalls, sourceString)
+	functionsCalls = storeFunctionCalls(nodes, functionsCalls, sourceString)
 	return functionsCalls
 }
 
-func storeCalledFunctions(node interface{}, functionsCalls []*FunctionCall, sourceString string) []*FunctionCall {
+func storeFunctionCalls(node interface{}, functionsCalls []*FunctionCall, sourceString string) []*FunctionCall {
 	switch node.(type) {
 	case []interface{}:
 		nodeArr := node.([]interface{})
 		for _, element := range nodeArr {
-			functionsCalls = storeCalledFunctions(element, functionsCalls, sourceString)
+			functionsCalls = storeFunctionCalls(element, functionsCalls, sourceString)
 		}
 	case map[string]interface{}:
 		nodeMap := node.(map[string]interface{})
@@ -68,7 +68,7 @@ func storeCalledFunctions(node interface{}, functionsCalls []*FunctionCall, sour
 				_, okMap := value.(map[string]interface{})
 
 				if okArr || okMap {
-					functionsCalls = storeCalledFunctions(value, functionsCalls, sourceString)
+					functionsCalls = storeFunctionCalls(value, functionsCalls, sourceString)
 				}
 			}
 		}
@@ -263,7 +263,7 @@ func ManipulateCalledFunctionsBodies() string {
 	contract := contractprovider.SolidityContractInstance()
 	jsonAST := contract.GetJsonCompactAST()
 	sourceCodeString := contract.GetSourceCode()
-	functionCalls := getCalledFunctionsNames(jsonAST, sourceCodeString)
+	functionCalls := getFunctionCalls(jsonAST, sourceCodeString)
 
 	nodes := jsonAST["nodes"]
 
