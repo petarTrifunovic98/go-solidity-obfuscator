@@ -7,16 +7,16 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-type RBNode[T constraints.Ordered] struct {
-	Data       interface{}
+type RBNode[T constraints.Ordered, D any] struct {
+	Data       D
 	Key        T
-	leftChild  *RBNode[T]
-	rightChild *RBNode[T]
-	parent     *RBNode[T]
+	leftChild  *RBNode[T, D]
+	rightChild *RBNode[T, D]
+	Parent     *RBNode[T, D]
 	isBlack    bool
 }
 
-func (node *RBNode[T]) swapColor(withNode *RBNode[T]) error {
+func (node *RBNode[T, D]) swapColor(withNode *RBNode[T, D]) error {
 	if withNode == nil {
 		return errors.New("Cannot swap colors with a nil node!")
 	}
@@ -28,53 +28,65 @@ func (node *RBNode[T]) swapColor(withNode *RBNode[T]) error {
 	return nil
 }
 
-type RBTree[T constraints.Ordered] struct {
-	Root *RBNode[T]
+func (node *RBNode[T, D]) GetParent() *RBNode[T, D] {
+	return node.Parent
 }
 
-func (tree *RBTree[T]) rightRotate(atNode *RBNode[T]) error {
+func (node *RBNode[T, D]) GetKey() T {
+	return node.Key
+}
+
+func (node *RBNode[T, D]) GetData() D {
+	return node.Data
+}
+
+type RBTree[T constraints.Ordered, D any] struct {
+	Root *RBNode[T, D]
+}
+
+func (tree *RBTree[T, D]) rightRotate(atNode *RBNode[T, D]) error {
 	if atNode == nil || atNode.leftChild == nil {
 		return errors.New("Illegal rotation! Either the node or its left child is nil!")
 	}
 
-	parentNode := atNode.parent
+	parentNode := atNode.Parent
 	atNodeLeftChild := atNode.leftChild
 
 	atNode.leftChild = atNodeLeftChild.rightChild
 	if atNodeLeftChild.rightChild != nil {
-		atNodeLeftChild.rightChild.parent = atNode
+		atNodeLeftChild.rightChild.Parent = atNode
 	}
 
 	atNodeLeftChild.rightChild = atNode
-	atNode.parent = atNodeLeftChild
+	atNode.Parent = atNodeLeftChild
 
 	tree.replaceChild(parentNode, atNodeLeftChild, atNode)
 
 	return nil
 }
 
-func (tree *RBTree[T]) leftRotate(atNode *RBNode[T]) error {
+func (tree *RBTree[T, D]) leftRotate(atNode *RBNode[T, D]) error {
 	if atNode == nil || atNode.rightChild == nil {
 		return errors.New("Illegal rotation! Either the node or its right child is nil!")
 	}
 
-	parentNode := atNode.parent
+	parentNode := atNode.Parent
 	atNodeRightChild := atNode.rightChild
 
 	atNode.rightChild = atNodeRightChild.leftChild
 	if atNodeRightChild.leftChild != nil {
-		atNodeRightChild.leftChild.parent = atNode
+		atNodeRightChild.leftChild.Parent = atNode
 	}
 
 	atNodeRightChild.leftChild = atNode
-	atNode.parent = atNodeRightChild
+	atNode.Parent = atNodeRightChild
 
 	tree.replaceChild(parentNode, atNodeRightChild, atNode)
 
 	return nil
 }
 
-func (tree *RBTree[T]) replaceChild(parent *RBNode[T], newChild *RBNode[T], oldChild *RBNode[T]) {
+func (tree *RBTree[T, D]) replaceChild(parent *RBNode[T, D], newChild *RBNode[T, D], oldChild *RBNode[T, D]) {
 	if parent == nil {
 		tree.Root = newChild
 	} else if parent.leftChild == oldChild {
@@ -84,21 +96,21 @@ func (tree *RBTree[T]) replaceChild(parent *RBNode[T], newChild *RBNode[T], oldC
 	}
 
 	if newChild != nil {
-		newChild.parent = parent
+		newChild.Parent = parent
 	}
 }
 
-func (tree *RBTree[T]) adaptTreeToRBConditions(mainNode *RBNode[T]) {
+func (tree *RBTree[T, D]) adaptTreeToRBConditions(mainNode *RBNode[T, D]) {
 	tree.Root.isBlack = true
-	if mainNode == tree.Root || mainNode.isBlack == true || mainNode.parent.isBlack == true {
+	if mainNode == tree.Root || mainNode.isBlack == true || mainNode.Parent.isBlack == true {
 		return
 	}
 
-	parentNode := mainNode.parent
-	grandParentNode := parentNode.parent
+	parentNode := mainNode.Parent
+	grandParentNode := parentNode.Parent
 
 	if !parentNode.isBlack {
-		var uncleNode *RBNode[T]
+		var uncleNode *RBNode[T, D]
 		if grandParentNode.leftChild == parentNode {
 			uncleNode = grandParentNode.rightChild
 		} else {
@@ -138,9 +150,20 @@ func (tree *RBTree[T]) adaptTreeToRBConditions(mainNode *RBNode[T]) {
 
 }
 
-func (tree *RBTree[T]) InsertAndGetParent(node *RBNode[T]) *RBNode[T] {
+func (tree *RBTree[T, D]) InsertNewNode(key T, data D) *RBNode[T, D] {
+	newNode := RBNode[T, D]{
+		Key:     key,
+		Data:    data,
+		isBlack: false,
+	}
+
+	tree.Insert(&newNode)
+	return &newNode
+}
+
+func (tree *RBTree[T, D]) Insert(node *RBNode[T, D]) *RBNode[T, D] {
 	currentNode := tree.Root
-	var parentNode *RBNode[T] = nil
+	var parentNode *RBNode[T, D] = nil
 
 	if currentNode == nil {
 		node.isBlack = true
@@ -166,13 +189,13 @@ func (tree *RBTree[T]) InsertAndGetParent(node *RBNode[T]) *RBNode[T] {
 		}
 	}
 
-	node.parent = parentNode
+	node.Parent = parentNode
 	tree.adaptTreeToRBConditions(node)
 
-	return parentNode
+	return node.Parent
 }
 
-func InOrderTraversal[T constraints.Ordered](root *RBNode[T]) {
+func InOrderTraversal[T constraints.Ordered, D any](root *RBNode[T, D]) {
 	if root == nil {
 		return
 	}
@@ -190,7 +213,7 @@ func InOrderTraversal[T constraints.Ordered](root *RBNode[T]) {
 	InOrderTraversal(root.rightChild)
 }
 
-func PreOrderTraversal[T constraints.Ordered](root *RBNode[T]) {
+func PreOrderTraversal[T constraints.Ordered, D any](root *RBNode[T, D]) {
 	if root == nil {
 		return
 	}

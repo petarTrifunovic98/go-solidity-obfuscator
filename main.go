@@ -43,45 +43,53 @@ func main() {
 	// outputFile.WriteString(sourceString)
 	//generateTargetAST(12)
 
-	asd := datastructs.RBTree[int]{}
+	asd := datastructs.RBTree[int, int]{}
 
-	rootNode := datastructs.RBNode[int]{
+	rootNode := datastructs.RBNode[int, int]{
 		Data: 1,
 		Key:  7,
 	}
-	asd.InsertAndGetParent(&rootNode)
+	asd.Insert(&rootNode)
 
-	newNode := new(datastructs.RBNode[int])
+	newNode := new(datastructs.RBNode[int, int])
 	newNode.Key = 15
-	asd.InsertAndGetParent(newNode)
+	node15 := newNode
+	asd.Insert(newNode)
 
-	newNode = new(datastructs.RBNode[int])
+	newNode = new(datastructs.RBNode[int, int])
 	newNode.Key = 6
-	asd.InsertAndGetParent(newNode)
+	asd.Insert(newNode)
 
-	newNode = new(datastructs.RBNode[int])
+	newNode = new(datastructs.RBNode[int, int])
 	newNode.Key = 18
-	asd.InsertAndGetParent(newNode)
+	node18 := newNode
+	asd.Insert(newNode)
 
-	newNode = new(datastructs.RBNode[int])
+	newNode = new(datastructs.RBNode[int, int])
 	newNode.Key = 12
-	asd.InsertAndGetParent(newNode)
+	asd.Insert(newNode)
 
-	newNode = new(datastructs.RBNode[int])
+	newNode = new(datastructs.RBNode[int, int])
 	newNode.Key = 24
-	asd.InsertAndGetParent(newNode)
+	asd.Insert(newNode)
 
-	newNode = new(datastructs.RBNode[int])
+	newNode = new(datastructs.RBNode[int, int])
 	newNode.Key = 16
-	asd.InsertAndGetParent(newNode)
+	asd.Insert(newNode)
 
-	newNode = new(datastructs.RBNode[int])
+	newNode = new(datastructs.RBNode[int, int])
 	newNode.Key = 28
-	asd.InsertAndGetParent(newNode)
+	node28 := newNode
+	asd.Insert(newNode)
 
-	newNode = new(datastructs.RBNode[int])
+	newNode = new(datastructs.RBNode[int, int])
 	newNode.Key = 5
-	asd.InsertAndGetParent(newNode)
+	asd.Insert(newNode)
+
+	fmt.Println(node15.Parent)
+	fmt.Println(node18.Parent)
+	fmt.Println(node28.Parent)
+	fmt.Println(newNode.Parent)
 
 	datastructs.InOrderTraversal(asd.Root)
 	fmt.Println()

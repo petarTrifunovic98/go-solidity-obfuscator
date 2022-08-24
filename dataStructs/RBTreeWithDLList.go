@@ -1,22 +1,52 @@
 package datastructs
 
 import (
-	rbt "github.com/emirpasic/gods/trees/redblacktree"
+	"golang.org/x/exp/constraints"
 )
 
-type RBTreeNode struct {
-	key        interface{}
-	value      interface{}
-	dlListNode *DLLNode
+type RBTreeData struct {
+	data      interface{}
+	myDLLNode *DLLNode
 }
 
-type RBTreeWithList struct {
-	rbTree *rbt.Tree
+type RBTreeDataCompatible interface {
+	RBTreeData | ~int
+}
+
+type Petar struct {
+	myDLLNode *DLLNode
+	data      interface{}
+}
+
+type RBTreeWithList[T constraints.Ordered] struct {
+	rbTree *RBTree[T, RBTreeData]
 	dlList *DoublyLinkedList
 }
 
-func (rbtwl *RBTreeWithList) insert(key interface{}, RBValue *RBTreeNode, DLLValue *DLLNode) {
-	rbtwl.rbTree.Put(key, RBValue)
-	RBValue.dlListNode = DLLValue
+func (rbtwl *RBTreeWithList[T]) insertNewNode(key T) {
 
+}
+
+func (rbtwl *RBTreeWithList[T]) insert(key T, data interface{}) {
+	newDLLNode := new(DLLNode)
+	newDLLNode.value = data
+
+	newRBTreeData := RBTreeData{
+		data:      data,
+		myDLLNode: newDLLNode,
+	}
+
+	newRBTreeNode := rbtwl.rbTree.InsertNewNode(key, newRBTreeData)
+	nodeParent := newRBTreeNode.GetParent()
+	if nodeParent == nil {
+		rbtwl.dlList.append(newDLLNode)
+	} else {
+		parentDllNode := nodeParent.GetData().myDLLNode
+
+		if key < nodeParent.GetKey() {
+			rbtwl.dlList.insertBefore(newDLLNode, parentDllNode)
+		} else {
+			rbtwl.dlList.insertAfter(newDLLNode, parentDllNode)
+		}
+	}
 }
