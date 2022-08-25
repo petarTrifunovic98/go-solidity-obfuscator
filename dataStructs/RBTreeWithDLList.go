@@ -1,7 +1,7 @@
 package datastructs
 
 import (
-	"golang.org/x/exp/constraints"
+	"fmt"
 )
 
 type RBTreeData struct {
@@ -9,25 +9,12 @@ type RBTreeData struct {
 	myDLLNode *DLLNode
 }
 
-type RBTreeDataCompatible interface {
-	RBTreeData | ~int
+type RBTreeWithList[T any] struct {
+	RbTree *RBTree[T, RBTreeData]
+	DlList *DoublyLinkedList
 }
 
-type Petar struct {
-	myDLLNode *DLLNode
-	data      interface{}
-}
-
-type RBTreeWithList[T constraints.Ordered] struct {
-	rbTree *RBTree[T, RBTreeData]
-	dlList *DoublyLinkedList
-}
-
-func (rbtwl *RBTreeWithList[T]) insertNewNode(key T) {
-
-}
-
-func (rbtwl *RBTreeWithList[T]) insert(key T, data interface{}) {
+func (rbtwl *RBTreeWithList[T]) Insert(key T, data interface{}, listTraversalFunc func(*DLLNode), rbTreeUpdateFunc func(T, RBTreeData) T) {
 	newDLLNode := new(DLLNode)
 	newDLLNode.value = data
 
@@ -36,17 +23,38 @@ func (rbtwl *RBTreeWithList[T]) insert(key T, data interface{}) {
 		myDLLNode: newDLLNode,
 	}
 
-	newRBTreeNode := rbtwl.rbTree.InsertNewNode(key, newRBTreeData)
+	newRBTreeNode := rbtwl.RbTree.InsertNewNode(key, newRBTreeData)
 	nodeParent := newRBTreeNode.GetParent()
 	if nodeParent == nil {
-		rbtwl.dlList.append(newDLLNode)
+		leftChild := newRBTreeNode.GetLeftChild()
+		rightChild := newRBTreeNode.GetRightChild()
+		if leftChild != nil {
+			rbtwl.DlList.insertAfter(newDLLNode, leftChild.GetData().myDLLNode)
+		} else if rightChild != nil {
+			rbtwl.DlList.insertBefore(newDLLNode, rightChild.GetData().myDLLNode)
+		} else {
+			rbtwl.DlList.append(newDLLNode)
+		}
 	} else {
 		parentDllNode := nodeParent.GetData().myDLLNode
 
-		if key < nodeParent.GetKey() {
-			rbtwl.dlList.insertBefore(newDLLNode, parentDllNode)
+		if rbtwl.RbTree.Less(key, nodeParent.GetKey()) {
+			rbtwl.DlList.insertBefore(newDLLNode, parentDllNode)
 		} else {
-			rbtwl.dlList.insertAfter(newDLLNode, parentDllNode)
+			rbtwl.DlList.insertAfter(newDLLNode, parentDllNode)
 		}
 	}
+
+	fmt.Println("Got to traversal of dll")
+	rbtwl.DlList.traversePartAndApply(newDLLNode, listTraversalFunc)
+	rbTreeUpdateFunc(newRBTreeNode.Key, newRBTreeNode.Data)
+}
+
+func (rbtwl *RBTreeWithList[T]) PrintCurrentState() {
+	fmt.Print("Tree data:  ")
+	InOrderTraversal(rbtwl.RbTree.Root)
+	fmt.Println()
+	fmt.Print("Doubly linked list data:  ")
+	rbtwl.DlList.TraverseList()
+	fmt.Println()
 }

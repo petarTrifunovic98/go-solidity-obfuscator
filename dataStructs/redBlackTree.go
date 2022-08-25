@@ -3,11 +3,9 @@ package datastructs
 import (
 	"errors"
 	"fmt"
-
-	"golang.org/x/exp/constraints"
 )
 
-type RBNode[T constraints.Ordered, D any] struct {
+type RBNode[T any, D any] struct {
 	Data       D
 	Key        T
 	leftChild  *RBNode[T, D]
@@ -32,6 +30,14 @@ func (node *RBNode[T, D]) GetParent() *RBNode[T, D] {
 	return node.Parent
 }
 
+func (node *RBNode[T, D]) GetLeftChild() *RBNode[T, D] {
+	return node.leftChild
+}
+
+func (node *RBNode[T, D]) GetRightChild() *RBNode[T, D] {
+	return node.rightChild
+}
+
 func (node *RBNode[T, D]) GetKey() T {
 	return node.Key
 }
@@ -40,8 +46,9 @@ func (node *RBNode[T, D]) GetData() D {
 	return node.Data
 }
 
-type RBTree[T constraints.Ordered, D any] struct {
+type RBTree[T any, D any] struct {
 	Root *RBNode[T, D]
+	Less func(T, T) bool
 }
 
 func (tree *RBTree[T, D]) rightRotate(atNode *RBNode[T, D]) error {
@@ -174,7 +181,7 @@ func (tree *RBTree[T, D]) Insert(node *RBNode[T, D]) *RBNode[T, D] {
 	node.isBlack = false
 	for true {
 		parentNode = currentNode
-		if node.Key > currentNode.Key {
+		if tree.Less(currentNode.Key, node.Key) {
 			currentNode = currentNode.rightChild
 			if currentNode == nil {
 				parentNode.rightChild = node
@@ -195,7 +202,7 @@ func (tree *RBTree[T, D]) Insert(node *RBNode[T, D]) *RBNode[T, D] {
 	return node.Parent
 }
 
-func InOrderTraversal[T constraints.Ordered, D any](root *RBNode[T, D]) {
+func InOrderTraversal[T any, D any](root *RBNode[T, D]) {
 	if root == nil {
 		return
 	}
@@ -213,7 +220,7 @@ func InOrderTraversal[T constraints.Ordered, D any](root *RBNode[T, D]) {
 	InOrderTraversal(root.rightChild)
 }
 
-func PreOrderTraversal[T constraints.Ordered, D any](root *RBNode[T, D]) {
+func PreOrderTraversal[T any, D any](root *RBNode[T, D]) {
 	if root == nil {
 		return
 	}
