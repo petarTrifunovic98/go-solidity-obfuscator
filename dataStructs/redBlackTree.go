@@ -46,6 +46,10 @@ func (node *RBNode[T, D]) GetData() D {
 	return node.Data
 }
 
+func (node *RBNode[T, D]) SetKey(newKey T) {
+	node.Key = newKey
+}
+
 type RBTree[T any, D any] struct {
 	Root *RBNode[T, D]
 	Less func(T, T) bool

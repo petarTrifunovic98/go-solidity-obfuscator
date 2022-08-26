@@ -1,12 +1,37 @@
 package main
 
 import (
+	"fmt"
 	datastructs "solidity-obfuscator/dataStructs"
 )
+
+type kp interface {
+	GetCurrentLine() int
+	GetReducedLine() int
+	SetCurrentLine(int)
+	SetReducedLine(int)
+}
 
 type keyPair struct {
 	currentLine int
 	reducedLine int
+}
+
+func (k keyPair) GetCurrentLine() int {
+	return k.currentLine
+}
+
+func (k keyPair) GetReducedLine() int {
+	return k.reducedLine
+}
+
+func (k keyPair) SetCurrentLine(cl int) {
+	k.currentLine = cl
+}
+
+func (k keyPair) SetReducedLine(rl int) {
+	k.reducedLine = rl
+	fmt.Println(k.reducedLine, rl)
 }
 
 type spreadPair struct {
@@ -22,16 +47,47 @@ func less(k1, k2 keyPair) bool {
 	}
 }
 
-func traversal(node *datastructs.DLLNode) {
+func traversal[T kp](node *datastructs.DLLNode) {
 	prev := node.GetPrevious()
 	if prev != nil {
-		prevNodeValue := prev.GetValue().(spreadPair)
-		nodeValue := node.GetValue().(spreadPair)
+		prevNodeValue := prev.GetValue().(datastructs.DLListValue[T])
+		nodeValue := node.GetValue().(datastructs.DLListValue[T])
 		newValue := spreadPair{
-			realSpread:      nodeValue.realSpread,
-			increasedSpread: nodeValue.realSpread + prevNodeValue.increasedSpread,
+			realSpread:      nodeValue.Value.(spreadPair).realSpread,
+			increasedSpread: nodeValue.Value.(spreadPair).realSpread + prevNodeValue.Value.(spreadPair).increasedSpread,
 		}
-		node.SetValue(newValue)
+		node.SetValue(datastructs.DLListValue[T]{
+			Value:        newValue,
+			MyRBTreeNode: nodeValue.MyRBTreeNode,
+		})
+
+		nodeRBTreeKey := any(nodeValue.MyRBTreeNode.Key).(keyPair)
+		newKey := keyPair{}
+		if nodeRBTreeKey.GetReducedLine() == -1 {
+			newKey.currentLine = nodeRBTreeKey.GetCurrentLine()
+			newKey.reducedLine = newKey.currentLine - prevNodeValue.Value.(spreadPair).increasedSpread
+		} else {
+			newKey.reducedLine = nodeRBTreeKey.GetReducedLine()
+			newKey.currentLine = nodeRBTreeKey.GetReducedLine() + prevNodeValue.Value.(spreadPair).increasedSpread
+		}
+		nodeValue.MyRBTreeNode.SetKey(any(newKey).(T))
+	} else {
+		nodeValue := node.GetValue().(datastructs.DLListValue[T])
+		newValue := spreadPair{
+			realSpread:      nodeValue.Value.(spreadPair).realSpread,
+			increasedSpread: nodeValue.Value.(spreadPair).realSpread,
+		}
+		node.SetValue(datastructs.DLListValue[T]{
+			Value:        newValue,
+			MyRBTreeNode: nodeValue.MyRBTreeNode,
+		})
+		nodeRBTreeKey := nodeValue.MyRBTreeNode.Key
+		newKey := keyPair{
+			currentLine: nodeRBTreeKey.GetCurrentLine(),
+			reducedLine: nodeRBTreeKey.GetCurrentLine(),
+		}
+		nodeValue.MyRBTreeNode.SetKey(any(newKey).(T))
+
 	}
 }
 
@@ -77,33 +133,33 @@ func main() {
 	// outputFile.WriteString(sourceString)
 	//generateTargetAST(12)
 
-	// asd := datastructs.RBTree[int, int]{
-	// 	Less: func(i1, i2 int) bool { return i1 < i2 },
-	// }
+	asd := datastructs.RBTree[int, int]{
+		Less: func(i1, i2 int) bool { return i1 < i2 },
+	}
 
-	// rootNode := datastructs.RBNode[int, int]{
-	// 	Data: 1,
-	// 	Key:  7,
-	// }
-	// asd.Insert(&rootNode)
+	rootNode := datastructs.RBNode[int, int]{
+		Data: 1,
+		Key:  1,
+	}
+	asd.Insert(&rootNode)
 
-	// newNode := new(datastructs.RBNode[int, int])
-	// newNode.Key = 15
-	// node15 := newNode
-	// asd.Insert(newNode)
+	newNode := new(datastructs.RBNode[int, int])
+	newNode.Key = 7
+	//node15 := newNode
+	asd.Insert(newNode)
 
-	// newNode = new(datastructs.RBNode[int, int])
-	// newNode.Key = 6
-	// asd.Insert(newNode)
+	newNode = new(datastructs.RBNode[int, int])
+	newNode.Key = 13
+	asd.Insert(newNode)
 
-	// newNode = new(datastructs.RBNode[int, int])
-	// newNode.Key = 18
-	// node18 := newNode
-	// asd.Insert(newNode)
+	newNode = new(datastructs.RBNode[int, int])
+	newNode.Key = 16
+	//node18 := newNode
+	asd.Insert(newNode)
 
-	// newNode = new(datastructs.RBNode[int, int])
-	// newNode.Key = 12
-	// asd.Insert(newNode)
+	newNode = new(datastructs.RBNode[int, int])
+	newNode.Key = 21
+	asd.Insert(newNode)
 
 	// newNode = new(datastructs.RBNode[int, int])
 	// newNode.Key = 24
@@ -127,24 +183,29 @@ func main() {
 	// fmt.Println(node28.Parent)
 	// fmt.Println(newNode.Parent)
 
-	// datastructs.InOrderTraversal(asd.Root)
-	// fmt.Println()
-	// datastructs.PreOrderTraversal(asd.Root)
-	// fmt.Println()
+	datastructs.InOrderTraversal(asd.Root)
+	fmt.Println()
+	datastructs.PreOrderTraversal(asd.Root)
+	fmt.Println()
 
-	// rbTree := datastructs.RBTree[keyPair, datastructs.RBTreeData]{
-	// 	Less: less,
-	// }
+	rbTree := datastructs.RBTree[keyPair, datastructs.RBTreeData]{
+		Less: less,
+	}
 
-	// dlList := datastructs.DoublyLinkedList{}
+	dlList := datastructs.DoublyLinkedList{}
 
-	// treeWithList := datastructs.RBTreeWithList[keyPair]{
-	// 	RbTree: &rbTree,
-	// 	DlList: &dlList,
-	// }
+	treeWithList := datastructs.RBTreeWithList[keyPair]{
+		RbTree: &rbTree,
+		DlList: &dlList,
+	}
 
-	// treeWithList.Insert(keyPair{1, 1}, spreadPair{3, 3}, traversal)
-	// treeWithList.Insert()
+	treeWithList.Insert(keyPair{1, -1}, spreadPair{3, -1}, traversal[keyPair])
+	treeWithList.Insert(keyPair{7, -1}, spreadPair{4, -1}, traversal[keyPair])
+	treeWithList.Insert(keyPair{13, -1}, spreadPair{1, -1}, traversal[keyPair])
+	treeWithList.Insert(keyPair{16, -1}, spreadPair{3, -1}, traversal[keyPair])
+	treeWithList.Insert(keyPair{21, -1}, spreadPair{1, -1}, traversal[keyPair])
 
-	// treeWithList.PrintCurrentState()
+	treeWithList.Insert(keyPair{5, -1}, spreadPair{2, -1}, traversal[keyPair])
+
+	treeWithList.PrintCurrentState()
 }

@@ -9,14 +9,18 @@ type RBTreeData struct {
 	myDLLNode *DLLNode
 }
 
+type DLListValue[T any] struct {
+	Value        interface{}
+	MyRBTreeNode *RBNode[T, RBTreeData]
+}
+
 type RBTreeWithList[T any] struct {
 	RbTree *RBTree[T, RBTreeData]
 	DlList *DoublyLinkedList
 }
 
-func (rbtwl *RBTreeWithList[T]) Insert(key T, data interface{}, listTraversalFunc func(*DLLNode), rbTreeUpdateFunc func(T, RBTreeData) T) {
+func (rbtwl *RBTreeWithList[T]) Insert(key T, data interface{}, listTraversalFunc func(*DLLNode)) {
 	newDLLNode := new(DLLNode)
-	newDLLNode.value = data
 
 	newRBTreeData := RBTreeData{
 		data:      data,
@@ -24,6 +28,14 @@ func (rbtwl *RBTreeWithList[T]) Insert(key T, data interface{}, listTraversalFun
 	}
 
 	newRBTreeNode := rbtwl.RbTree.InsertNewNode(key, newRBTreeData)
+
+	newDLListValue := DLListValue[T]{
+		Value:        data,
+		MyRBTreeNode: newRBTreeNode,
+	}
+
+	newDLLNode.value = newDLListValue
+
 	nodeParent := newRBTreeNode.GetParent()
 	if nodeParent == nil {
 		leftChild := newRBTreeNode.GetLeftChild()
@@ -38,6 +50,7 @@ func (rbtwl *RBTreeWithList[T]) Insert(key T, data interface{}, listTraversalFun
 	} else {
 		parentDllNode := nodeParent.GetData().myDLLNode
 
+		//fmt.Println(newDLLNode, parentDllNode)
 		if rbtwl.RbTree.Less(key, nodeParent.GetKey()) {
 			rbtwl.DlList.insertBefore(newDLLNode, parentDllNode)
 		} else {
@@ -45,14 +58,15 @@ func (rbtwl *RBTreeWithList[T]) Insert(key T, data interface{}, listTraversalFun
 		}
 	}
 
-	fmt.Println("Got to traversal of dll")
 	rbtwl.DlList.traversePartAndApply(newDLLNode, listTraversalFunc)
-	rbTreeUpdateFunc(newRBTreeNode.Key, newRBTreeNode.Data)
 }
 
 func (rbtwl *RBTreeWithList[T]) PrintCurrentState() {
-	fmt.Print("Tree data:  ")
+	fmt.Print("Tree data inorder:  ")
 	InOrderTraversal(rbtwl.RbTree.Root)
+	fmt.Println()
+	fmt.Print("Tree data preorder:  ")
+	PreOrderTraversal(rbtwl.RbTree.Root)
 	fmt.Println()
 	fmt.Print("Doubly linked list data:  ")
 	rbtwl.DlList.TraverseList()
