@@ -213,6 +213,26 @@ func (tree *RBTree[T, D]) Insert(node *RBNode[T, D]) *RBNode[T, D] {
 	// return node.Parent
 }
 
+func (tree *RBTree[T, D]) FindBiggestSmallerOrEqual(key T) *RBNode[T, D] {
+	var latestSmallerNode *RBNode[T, D] = nil
+	currentNode := tree.Root
+
+	for true {
+		if currentNode == nil {
+			return latestSmallerNode
+		} else if tree.Less(currentNode.Key, key) {
+			latestSmallerNode = currentNode
+			currentNode = currentNode.rightChild
+		} else if tree.Less(key, currentNode.Key) {
+			currentNode = currentNode.leftChild
+		} else {
+			return currentNode
+		}
+	}
+
+	return latestSmallerNode
+}
+
 func InOrderTraversal[T any, D any](root *RBNode[T, D]) {
 	if root == nil {
 		return

@@ -60,6 +60,15 @@ func (rbtwl *RBTreeWithList[T]) Insert(key T, data interface{}, listTraversalFun
 	rbtwl.DlList.traversePartAndApply(newDLLNode, listTraversalFunc)
 }
 
+func (rbtwl *RBTreeWithList[T]) FindBiggestSmallerOrEqual(key T) interface{} {
+	node := rbtwl.RbTree.FindBiggestSmallerOrEqual(key)
+	if node != nil {
+		return node.GetData().myDLLNode.GetValue()
+	} else {
+		return nil
+	}
+}
+
 func (rbtwl *RBTreeWithList[T]) PrintCurrentState() {
 	fmt.Print("Tree data inorder:  ")
 	InOrderTraversal(rbtwl.RbTree.Root)
