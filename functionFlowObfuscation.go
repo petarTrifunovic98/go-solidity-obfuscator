@@ -265,13 +265,15 @@ func ManipulateCalledFunctionsBodies() string {
 	sourceCodeString := contract.GetSourceCode()
 	functionCalls := getFunctionCalls(jsonAST, sourceCodeString)
 
+	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
+
 	nodes := jsonAST["nodes"]
 
 	sort.Slice(functionCalls, func(i, j int) bool {
 		return functionCalls[i].indexInSource < functionCalls[j].indexInSource
 	})
 
-	stringIndexIncrease := 0
+	//stringIndexIncrease := 0
 
 	var sb strings.Builder
 	if _, err := sb.WriteString(sourceCodeString); err != nil {
@@ -310,7 +312,6 @@ func ManipulateCalledFunctionsBodies() string {
 				}
 				retVarNames[i] = newVarName
 			}
-			fmt.Println(retVarNames)
 			newVarName += "_"
 
 			manipulatedFunc.replaceReturnStmtWithVariables(retVarNames, functionDef.retParameterTypes)
@@ -318,18 +319,25 @@ func ManipulateCalledFunctionsBodies() string {
 			funcCallStart := functionCall.indexInSource
 			funcCallEnd := functionCall.indexInSource + functionCall.callLen
 
-			i := funcCallStart + stringIndexIncrease
+			numToAdd := sourceCodeChangeInfo.NumToAddToSearch(funcCallStart)
+			// newSourceCodeIndex := funcCallStart + numToAdd
+
+			// i := funcCallStart + stringIndexIncrease
+			i := funcCallStart + numToAdd
+
+			// fmt.Print("i: ")
+			// fmt.Print(i)
+			// fmt.Print("; RBTreeWithDLList calculated i: ")
+			// fmt.Println(newSourceCodeIndex)
 			for sourceCodeString[i] != ';' && sourceCodeString[i] != '{' && sourceCodeString[i] != '}' {
 				i--
 			}
 			sourceCodeString = sourceCodeString[:i+1] + manipulatedFunc.body + sourceCodeString[i+1:]
-			stringIndexIncrease += len(manipulatedFunc.body)
+			//stringIndexIncrease += len(manipulatedFunc.body)
+			sourceCodeChangeInfo.ReportSourceCodeChange(i+1, len(manipulatedFunc.body))
 
 			insertString := "("
 			for ind, varName := range retVarNames {
-				fmt.Print(ind)
-				fmt.Println(": " + varName)
-
 				if ind > 0 {
 					insertString += ", "
 				}
@@ -337,16 +345,34 @@ func ManipulateCalledFunctionsBodies() string {
 			}
 			insertString += ")"
 
-			sourceCodeString = sourceCodeString[:funcCallStart+stringIndexIncrease] + insertString + sourceCodeString[funcCallEnd+stringIndexIncrease:]
-			stringIndexIncrease += len(insertString) - functionCall.callLen
+			numToAdd = sourceCodeChangeInfo.NumToAddToSearch(funcCallStart)
+			// newSourceCodeIndex = funcCallStart + numToAdd
+			// fmt.Print("i: ")
+			// fmt.Print(funcCallStart + stringIndexIncrease)
+			// fmt.Print("; RBTreeWithDLList calculated i: ")
+			// fmt.Println(newSourceCodeIndex)
+
+			sourceCodeString = sourceCodeString[:funcCallStart+numToAdd] + insertString + sourceCodeString[funcCallEnd+numToAdd:]
+			stringLenDiff := len(insertString) - functionCall.callLen
+			smallerStringLen := functionCall.callLen
+			if stringLenDiff < 0 {
+				smallerStringLen = len(insertString)
+				// fmt.Println("Smaller")
+			} /*else {
+				fmt.Println("Bigger")
+			}*/
+			if stringLenDiff != 0 {
+				sourceCodeChangeInfo.ReportSourceCodeChange(funcCallStart+numToAdd+smallerStringLen, stringLenDiff)
+			}
+			//stringIndexIncrease += len(insertString) - functionCall.callLen
 
 			variableInfo.SetLatestDashVariableName(newVarName)
 		}
 	}
 
-	contract.SetSourceCode(sourceCodeString)
+	sourceCodeChangeInfo.DisplayTree()
 
-	fmt.Println(sourceCodeString)
+	contract.SetSourceCode(sourceCodeString)
 
 	return sourceCodeString
 
