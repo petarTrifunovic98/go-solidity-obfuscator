@@ -125,7 +125,15 @@ func (scci *sourceCodeChangeInformation) ReportSourceCodeChange(startingIndex in
 }
 
 func (scci *sourceCodeChangeInformation) NumToAddToSearch(oldSourceCodeIndex int) int {
-	dllValue := scci.sourceCodeChangeTracker.FindBiggestSmallerOrEqual(keyPair{0, oldSourceCodeIndex}).(spreadPair)
-	return dllValue.increasedSpread
+	dllValue := scci.sourceCodeChangeTracker.FindBiggestSmallerOrEqual(keyPair{0, oldSourceCodeIndex})
+	if dllValue != nil {
+		return dllValue.(spreadPair).increasedSpread
+	} else {
+		return 0
+	}
 
+}
+
+func (scii *sourceCodeChangeInformation) DisplayTree() {
+	scii.sourceCodeChangeTracker.PrintCurrentState()
 }
