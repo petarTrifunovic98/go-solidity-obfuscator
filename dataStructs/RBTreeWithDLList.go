@@ -36,7 +36,7 @@ func (rbtwl *RBTreeWithList[T]) Insert(key T, data interface{}, listTraversalFun
 
 	newDLLNode.value = newDLListValue
 
-	nodeParent := newRBTreeNode.GetParent()
+	nodeParent := newRBTreeNode.GetOriginalParent()
 	if nodeParent == nil {
 		leftChild := newRBTreeNode.GetLeftChild()
 		rightChild := newRBTreeNode.GetRightChild()
@@ -50,11 +50,10 @@ func (rbtwl *RBTreeWithList[T]) Insert(key T, data interface{}, listTraversalFun
 	} else {
 		parentDllNode := nodeParent.GetData().myDLLNode
 
-		//fmt.Println(newDLLNode, parentDllNode)
-		if rbtwl.RbTree.Less(key, nodeParent.GetKey()) {
-			rbtwl.DlList.insertBefore(newDLLNode, parentDllNode)
-		} else {
+		if rbtwl.RbTree.Less(nodeParent.GetKey(), key) {
 			rbtwl.DlList.insertAfter(newDLLNode, parentDllNode)
+		} else {
+			rbtwl.DlList.insertBefore(newDLLNode, parentDllNode)
 		}
 	}
 

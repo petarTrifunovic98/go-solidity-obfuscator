@@ -39,11 +39,11 @@ type spreadPair struct {
 	increasedSpread int
 }
 
-func less(k1, k2 keyPair) bool {
-	if k1.currentLine < 0 {
-		return k1.reducedLine < k2.reducedLine
+func less(existingKey, newKey keyPair) bool {
+	if newKey.reducedLine == 0 {
+		return existingKey.currentLine < newKey.currentLine
 	} else {
-		return k1.currentLine < k2.currentLine
+		return existingKey.reducedLine < newKey.reducedLine
 	}
 }
 
@@ -63,7 +63,10 @@ func traversal[T kp](node *datastructs.DLLNode) {
 
 		nodeRBTreeKey := any(nodeValue.MyRBTreeNode.Key).(keyPair)
 		newKey := keyPair{}
-		if nodeRBTreeKey.GetReducedLine() == -1 {
+		if nodeRBTreeKey.GetReducedLine() == 0 {
+			if newValue.realSpread == -2 {
+				fmt.Println(prevNodeValue.Value.(spreadPair))
+			}
 			newKey.currentLine = nodeRBTreeKey.GetCurrentLine()
 			newKey.reducedLine = newKey.currentLine - prevNodeValue.Value.(spreadPair).increasedSpread
 		} else {
@@ -90,6 +93,10 @@ func traversal[T kp](node *datastructs.DLLNode) {
 
 	}
 }
+
+// func traversal[T kp](node *datastructs.DLLNode) {
+
+// }
 
 // func updateKey(k keyPair, nodeData datastructs.RBTreeData) keyPair {
 
@@ -199,13 +206,16 @@ func main() {
 		DlList: &dlList,
 	}
 
-	treeWithList.Insert(keyPair{1, -1}, spreadPair{3, -1}, traversal[keyPair])
-	treeWithList.Insert(keyPair{7, -1}, spreadPair{4, -1}, traversal[keyPair])
-	treeWithList.Insert(keyPair{13, -1}, spreadPair{1, -1}, traversal[keyPair])
-	treeWithList.Insert(keyPair{16, -1}, spreadPair{3, -1}, traversal[keyPair])
-	treeWithList.Insert(keyPair{21, -1}, spreadPair{1, -1}, traversal[keyPair])
+	treeWithList.Insert(keyPair{1, 0}, spreadPair{3, 0}, traversal[keyPair])
+	treeWithList.Insert(keyPair{7, 0}, spreadPair{4, 0}, traversal[keyPair])
+	treeWithList.Insert(keyPair{13, 0}, spreadPair{1, 0}, traversal[keyPair])
+	treeWithList.Insert(keyPair{16, 0}, spreadPair{3, 0}, traversal[keyPair])
+	treeWithList.Insert(keyPair{21, 0}, spreadPair{1, 0}, traversal[keyPair])
 
-	treeWithList.Insert(keyPair{5, -1}, spreadPair{2, -1}, traversal[keyPair])
+	treeWithList.Insert(keyPair{5, 0}, spreadPair{2, 0}, traversal[keyPair])
+	treeWithList.PrintCurrentState()
+	fmt.Println()
+	treeWithList.Insert(keyPair{14, 0}, spreadPair{-2, 0}, traversal[keyPair])
 
 	treeWithList.PrintCurrentState()
 }

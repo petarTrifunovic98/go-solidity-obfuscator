@@ -57,7 +57,9 @@ func (dll *DoublyLinkedList) insertBefore(node *DLLNode, nextNode *DLLNode) {
 	node.next = nextNode
 	node.prev = nextNode.prev
 	nextNode.prev = node
-	node.prev.next = node
+	if node.prev != nil {
+		node.prev.next = node
+	}
 
 	if dll.first == nextNode {
 		dll.first = node

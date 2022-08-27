@@ -6,12 +6,13 @@ import (
 )
 
 type RBNode[T any, D any] struct {
-	Data       D
-	Key        T
-	leftChild  *RBNode[T, D]
-	rightChild *RBNode[T, D]
-	Parent     *RBNode[T, D]
-	isBlack    bool
+	Data           D
+	Key            T
+	leftChild      *RBNode[T, D]
+	rightChild     *RBNode[T, D]
+	Parent         *RBNode[T, D]
+	originalParent *RBNode[T, D]
+	isBlack        bool
 }
 
 func (node *RBNode[T, D]) swapColor(withNode *RBNode[T, D]) error {
@@ -28,6 +29,10 @@ func (node *RBNode[T, D]) swapColor(withNode *RBNode[T, D]) error {
 
 func (node *RBNode[T, D]) GetParent() *RBNode[T, D] {
 	return node.Parent
+}
+
+func (node *RBNode[T, D]) GetOriginalParent() *RBNode[T, D] {
+	return node.originalParent
 }
 
 func (node *RBNode[T, D]) GetLeftChild() *RBNode[T, D] {
@@ -201,9 +206,11 @@ func (tree *RBTree[T, D]) Insert(node *RBNode[T, D]) *RBNode[T, D] {
 	}
 
 	node.Parent = parentNode
+	node.originalParent = parentNode
 	tree.adaptTreeToRBConditions(node)
 
-	return node.Parent
+	return parentNode
+	// return node.Parent
 }
 
 func InOrderTraversal[T any, D any](root *RBNode[T, D]) {
