@@ -63,7 +63,7 @@ func (rbtwl *RBTreeWithList[T]) Insert(key T, data interface{}, listTraversalFun
 func (rbtwl *RBTreeWithList[T]) FindBiggestSmallerOrEqual(key T) interface{} {
 	node := rbtwl.RbTree.FindBiggestSmallerOrEqual(key)
 	if node != nil {
-		return node.GetData().myDLLNode.GetValue()
+		return node.GetData().myDLLNode.GetValue().(DLListValue[T]).Value
 	} else {
 		return nil
 	}
