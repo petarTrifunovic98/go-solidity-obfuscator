@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	datastructs "solidity-obfuscator/dataStructs"
 )
 
@@ -94,79 +97,71 @@ func traversal[T kp](node *datastructs.DLLNode) {
 	}
 }
 
-// func traversal[T kp](node *datastructs.DLLNode) {
-
-// }
-
-// func updateKey(k keyPair, nodeData datastructs.RBTreeData) keyPair {
-
-// }
-
 func main() {
 
-	// jsonFile, errJson := os.Open("../contract_examples/contract_example_0813_2.sol_json.ast")
-	// defer jsonFile.Close()
-	// if errJson != nil {
-	// 	fmt.Println(errJson)
-	// 	return
-	// }
+	jsonFile, errJson := os.Open("../contract_examples/contract_example_0813_2.sol_json.ast")
+	defer jsonFile.Close()
+	if errJson != nil {
+		fmt.Println(errJson)
+		return
+	}
 
-	// byteValue, _ := ioutil.ReadAll(jsonFile)
-	// var jsonStringMap map[string]interface{}
-	// json.Unmarshal([]byte(byteValue), &jsonStringMap)
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+	var jsonStringMap map[string]interface{}
+	json.Unmarshal([]byte(byteValue), &jsonStringMap)
 
-	// sourceFile, errSource := os.Open("../contract_examples/contract_example_0813_2.sol")
-	// defer sourceFile.Close()
-	// if errSource != nil {
-	// 	fmt.Println(errSource)
-	// 	return
-	// }
+	sourceFile, errSource := os.Open("../contract_examples/contract_example_0813_2.sol")
+	defer sourceFile.Close()
+	if errSource != nil {
+		fmt.Println(errSource)
+		return
+	}
 
-	// byteValue, _ = ioutil.ReadAll(sourceFile)
-	// sourceString := string(byteValue)
+	byteValue, _ = ioutil.ReadAll(sourceFile)
+	sourceString := string(byteValue)
 
-	// sourceString = ManipulateCalledFunctionsBodies()
-	// sourceString = ReplaceVarNames()
-	// sourceString = ReplaceComments()
-	// sourceString = ReplaceLiterals()
+	sourceString = ManipulateCalledFunctionsBodies()
+	sourceString = ReplaceVarNames()
+	sourceString = ReplaceComments()
+	sourceString = ReplaceLiterals()
 
-	// outputFile, errOutput := os.Create("../contract_examples/obfuscated.sol")
-	// defer outputFile.Close()
-	// if errOutput != nil {
-	// 	fmt.Println(errOutput)
-	// 	return
-	// }
+	outputFile, errOutput := os.Create("../contract_examples/obfuscated.sol")
+	defer outputFile.Close()
+	if errOutput != nil {
+		fmt.Println(errOutput)
+		return
+	}
 
-	// outputFile.WriteString(sourceString)
+	outputFile.WriteString(sourceString)
 	//generateTargetAST(12)
 
-	asd := datastructs.RBTree[int, int]{
-		Less: func(i1, i2 int) bool { return i1 < i2 },
-	}
+	// asd := datastructs.RBTree[int, int]{
+	// 	Less: func(i1, i2 int) bool { return i1 < i2 },
+	// }
 
-	rootNode := datastructs.RBNode[int, int]{
-		Data: 1,
-		Key:  1,
-	}
-	asd.Insert(&rootNode)
+	// rootNode := datastructs.RBNode[int, int]{
+	// 	Data: 1,
+	// 	Key:  1,
+	// }
+	// asd.Insert(&rootNode)
 
-	newNode := new(datastructs.RBNode[int, int])
-	newNode.Key = 7
-	//node15 := newNode
-	asd.Insert(newNode)
+	// newNode := new(datastructs.RBNode[int, int])
+	// newNode.Key = 7
+	// //node15 := newNode
+	// asd.Insert(newNode)
 
-	newNode = new(datastructs.RBNode[int, int])
-	newNode.Key = 13
-	asd.Insert(newNode)
+	// newNode = new(datastructs.RBNode[int, int])
+	// newNode.Key = 13
+	// asd.Insert(newNode)
 
-	newNode = new(datastructs.RBNode[int, int])
-	newNode.Key = 16
-	//node18 := newNode
-	asd.Insert(newNode)
+	// newNode = new(datastructs.RBNode[int, int])
+	// newNode.Key = 16
+	// //node18 := newNode
+	// asd.Insert(newNode)
 
-	newNode = new(datastructs.RBNode[int, int])
-	newNode.Key = 21
-	asd.Insert(newNode)
+	// newNode = new(datastructs.RBNode[int, int])
+	// newNode.Key = 21
+	// asd.Insert(newNode)
 
 	// newNode = new(datastructs.RBNode[int, int])
 	// newNode.Key = 24
@@ -190,32 +185,32 @@ func main() {
 	// fmt.Println(node28.Parent)
 	// fmt.Println(newNode.Parent)
 
-	datastructs.InOrderTraversal(asd.Root)
-	fmt.Println()
-	datastructs.PreOrderTraversal(asd.Root)
-	fmt.Println()
+	// datastructs.InOrderTraversal(asd.Root)
+	// fmt.Println()
+	// datastructs.PreOrderTraversal(asd.Root)
+	// fmt.Println()
 
-	rbTree := datastructs.RBTree[keyPair, datastructs.RBTreeData]{
-		Less: less,
-	}
+	// rbTree := datastructs.RBTree[keyPair, datastructs.RBTreeData]{
+	// 	Less: less,
+	// }
 
-	dlList := datastructs.DoublyLinkedList{}
+	// dlList := datastructs.DoublyLinkedList{}
 
-	treeWithList := datastructs.RBTreeWithList[keyPair]{
-		RbTree: &rbTree,
-		DlList: &dlList,
-	}
+	// treeWithList := datastructs.RBTreeWithList[keyPair]{
+	// 	RbTree: &rbTree,
+	// 	DlList: &dlList,
+	// }
 
-	treeWithList.Insert(keyPair{1, 0}, spreadPair{3, 0}, traversal[keyPair])
-	treeWithList.Insert(keyPair{7, 0}, spreadPair{4, 0}, traversal[keyPair])
-	treeWithList.Insert(keyPair{13, 0}, spreadPair{1, 0}, traversal[keyPair])
-	treeWithList.Insert(keyPair{16, 0}, spreadPair{3, 0}, traversal[keyPair])
-	treeWithList.Insert(keyPair{21, 0}, spreadPair{1, 0}, traversal[keyPair])
+	// treeWithList.Insert(keyPair{1, 0}, spreadPair{3, 0}, traversal[keyPair])
+	// treeWithList.Insert(keyPair{7, 0}, spreadPair{4, 0}, traversal[keyPair])
+	// treeWithList.Insert(keyPair{13, 0}, spreadPair{1, 0}, traversal[keyPair])
+	// treeWithList.Insert(keyPair{16, 0}, spreadPair{3, 0}, traversal[keyPair])
+	// treeWithList.Insert(keyPair{21, 0}, spreadPair{1, 0}, traversal[keyPair])
 
-	treeWithList.Insert(keyPair{5, 0}, spreadPair{2, 0}, traversal[keyPair])
-	treeWithList.PrintCurrentState()
-	fmt.Println()
-	treeWithList.Insert(keyPair{14, 0}, spreadPair{-2, 0}, traversal[keyPair])
+	// treeWithList.Insert(keyPair{5, 0}, spreadPair{2, 0}, traversal[keyPair])
+	// treeWithList.PrintCurrentState()
+	// fmt.Println()
+	// treeWithList.Insert(keyPair{14, 0}, spreadPair{-2, 0}, traversal[keyPair])
 
-	treeWithList.PrintCurrentState()
+	// treeWithList.PrintCurrentState()
 }
