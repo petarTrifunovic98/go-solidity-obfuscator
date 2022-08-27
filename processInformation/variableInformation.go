@@ -11,18 +11,18 @@ type variableInformation struct {
 	variableNamesSet       map[string]struct{}
 }
 
-var once sync.Once
-var instance *variableInformation
+var varInfoOnce sync.Once
+var varInfoInstance *variableInformation
 
 func VariableInformation() *variableInformation {
-	once.Do(func() {
-		instance = &variableInformation{
+	varInfoOnce.Do(func() {
+		varInfoInstance = &variableInformation{
 			latestDashVariableName: "_",
 			variableNamesSet:       nil,
 		}
 	})
 
-	return instance
+	return varInfoInstance
 }
 
 func (v *variableInformation) GetLatestDashVariableName() string {
