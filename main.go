@@ -125,7 +125,7 @@ func main() {
 	sourceString = ReplaceComments()
 	sourceString = ReplaceLiterals()
 
-	outputFile, errOutput := os.Create("../contract_examples/obfuscated.sol")
+	outputFile, errOutput := os.Create("../contract_examples/obfuscated2.sol")
 	defer outputFile.Close()
 	if errOutput != nil {
 		fmt.Println(errOutput)

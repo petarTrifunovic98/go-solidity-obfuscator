@@ -273,7 +273,7 @@ func ManipulateCalledFunctionsBodies() string {
 		return functionCalls[i].indexInSource < functionCalls[j].indexInSource
 	})
 
-	stringIndexIncrease := 0
+	//stringIndexIncrease := 0
 
 	var sb strings.Builder
 	if _, err := sb.WriteString(sourceCodeString); err != nil {
@@ -320,19 +320,20 @@ func ManipulateCalledFunctionsBodies() string {
 			funcCallEnd := functionCall.indexInSource + functionCall.callLen
 
 			numToAdd := sourceCodeChangeInfo.NumToAddToSearch(funcCallStart)
-			newSourceCodeIndex := funcCallStart + numToAdd
+			// newSourceCodeIndex := funcCallStart + numToAdd
 
-			i := funcCallStart + stringIndexIncrease
+			// i := funcCallStart + stringIndexIncrease
+			i := funcCallStart + numToAdd
 
-			fmt.Print("i: ")
-			fmt.Print(i)
-			fmt.Print("; RBTreeWithDLList calculated i: ")
-			fmt.Println(newSourceCodeIndex)
+			// fmt.Print("i: ")
+			// fmt.Print(i)
+			// fmt.Print("; RBTreeWithDLList calculated i: ")
+			// fmt.Println(newSourceCodeIndex)
 			for sourceCodeString[i] != ';' && sourceCodeString[i] != '{' && sourceCodeString[i] != '}' {
 				i--
 			}
 			sourceCodeString = sourceCodeString[:i+1] + manipulatedFunc.body + sourceCodeString[i+1:]
-			stringIndexIncrease += len(manipulatedFunc.body)
+			//stringIndexIncrease += len(manipulatedFunc.body)
 			sourceCodeChangeInfo.ReportSourceCodeChange(i+1, len(manipulatedFunc.body))
 
 			insertString := "("
@@ -345,25 +346,25 @@ func ManipulateCalledFunctionsBodies() string {
 			insertString += ")"
 
 			numToAdd = sourceCodeChangeInfo.NumToAddToSearch(funcCallStart)
-			newSourceCodeIndex = funcCallStart + numToAdd
-			fmt.Print("i: ")
-			fmt.Print(funcCallStart + stringIndexIncrease)
-			fmt.Print("; RBTreeWithDLList calculated i: ")
-			fmt.Println(newSourceCodeIndex)
+			// newSourceCodeIndex = funcCallStart + numToAdd
+			// fmt.Print("i: ")
+			// fmt.Print(funcCallStart + stringIndexIncrease)
+			// fmt.Print("; RBTreeWithDLList calculated i: ")
+			// fmt.Println(newSourceCodeIndex)
 
-			sourceCodeString = sourceCodeString[:funcCallStart+stringIndexIncrease] + insertString + sourceCodeString[funcCallEnd+stringIndexIncrease:]
+			sourceCodeString = sourceCodeString[:funcCallStart+numToAdd] + insertString + sourceCodeString[funcCallEnd+numToAdd:]
 			stringLenDiff := len(insertString) - functionCall.callLen
 			smallerStringLen := functionCall.callLen
 			if stringLenDiff < 0 {
 				smallerStringLen = len(insertString)
-				fmt.Println("Smaller")
-			} else {
+				// fmt.Println("Smaller")
+			} /*else {
 				fmt.Println("Bigger")
-			}
+			}*/
 			if stringLenDiff != 0 {
-				sourceCodeChangeInfo.ReportSourceCodeChange(funcCallStart+stringIndexIncrease+smallerStringLen, stringLenDiff)
+				sourceCodeChangeInfo.ReportSourceCodeChange(funcCallStart+numToAdd+smallerStringLen, stringLenDiff)
 			}
-			stringIndexIncrease += len(insertString) - functionCall.callLen
+			//stringIndexIncrease += len(insertString) - functionCall.callLen
 
 			variableInfo.SetLatestDashVariableName(newVarName)
 		}
