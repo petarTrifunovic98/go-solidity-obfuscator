@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"regexp"
 	contractprovider "solidity-obfuscator/contractProvider"
 	"solidity-obfuscator/helpers"
@@ -9,12 +10,14 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type FunctionDefinition struct {
-	body              string
-	parameterNames    []string
-	retParameterTypes []string
+	body                  string
+	parameterNames        []string
+	retParameterTypes     []string
+	independentStatements []string
 }
 
 type FunctionCall struct {
@@ -178,6 +181,34 @@ func findFunctionCallArgumentValues(functionCallNodeMap map[string]interface{}, 
 	return argumentValuesList
 }
 
+func findIndependentStatements(functionBody string) []string {
+	bodyCopy, _ := helpers.CopyString(functionBody)
+
+	statements := make([]string, 0)
+
+	stmtStart := 0
+	parenthesesCounter := 0
+
+	for ind, character := range bodyCopy {
+		if character == ';' && parenthesesCounter == 0 {
+			statements = append(statements, bodyCopy[stmtStart:ind+1])
+			stmtStart = ind + 1
+		} else if character == '{' {
+			parenthesesCounter++
+		} else if character == '}' {
+			parenthesesCounter--
+			if parenthesesCounter == 0 {
+				statements = append(statements, bodyCopy[stmtStart:ind+1])
+				stmtStart = ind + 1
+			}
+		}
+	}
+
+	return statements
+
+	// return nil
+}
+
 func extractFunctionDefinition(node interface{}, functionName string, sourceString string) *FunctionDefinition {
 	functionDefinitionNode := findFunctionDefinitionNode(node, functionName)
 	if functionDefinitionNode == nil {
@@ -187,11 +218,13 @@ func extractFunctionDefinition(node interface{}, functionName string, sourceStri
 	body := findFunctionDefinitionBody(functionDefinitionNode, sourceString)
 	parametersNames := findFunctionParametersNames(functionDefinitionNode)
 	retParametersNames := findFunctionRetParameterTypes(functionDefinitionNode)
+	independentStatements := findIndependentStatements(body)
 
 	functionDefinition := FunctionDefinition{
-		body:              body,
-		parameterNames:    parametersNames,
-		retParameterTypes: retParametersNames,
+		body:                  body,
+		parameterNames:        parametersNames,
+		retParameterTypes:     retParametersNames,
+		independentStatements: independentStatements,
 	}
 
 	return &functionDefinition
@@ -208,6 +241,59 @@ func (mf *ManipulatedFunction) replaceFunctionParametersWithArguments(functionPa
 	}
 
 	mf.body = body
+}
+
+func (mf *ManipulatedFunction) insertOpaquePredicates(uselessArrayNames [2]string) {
+	independentStatements := findIndependentStatements(mf.body)
+	independentStatementsLen := len(independentStatements)
+	if independentStatementsLen < 2 {
+		return
+	}
+
+	randomSeeder := rand.NewSource(time.Now().UnixNano())
+	randomGenerator := rand.New(randomSeeder)
+
+	var statementsSplitIndex int
+
+	if independentStatementsLen == 2 {
+		statementsSplitIndex = 2
+	} else {
+
+		statementsSplitIndex = randomGenerator.Intn(independentStatementsLen) + 1
+	}
+
+	//replace "7" with a declared constant
+	arraySize := randomGenerator.Intn(7) + 1
+	firstArrayDeclaration := "uint" + "[" + strconv.Itoa(arraySize) + "] "
+	lenToCopy := len(firstArrayDeclaration)
+	firstArrayDeclaration += uselessArrayNames[0] + " = [uint("
+
+	//replace "20" with a declared constant
+	firstArrayDeclaration += strconv.Itoa(randomGenerator.Intn(20)) + ")"
+
+	for i := 1; i < arraySize; i++ {
+		firstArrayDeclaration += ", " + strconv.Itoa(randomGenerator.Intn(20))
+	}
+	firstArrayDeclaration += "];\n"
+
+	secondArrayDeclaration := firstArrayDeclaration[:lenToCopy] + uselessArrayNames[1] + " = " + uselessArrayNames[0] + ";\n"
+
+	randomIndex := randomGenerator.Intn(arraySize)
+	ifStmt := "if (" + uselessArrayNames[0] + "[" + strconv.Itoa(randomIndex) + "] % 2 == 0) {"
+	for i := 0; i < statementsSplitIndex; i++ {
+		ifStmt += independentStatements[i]
+	}
+
+	if statementsSplitIndex < independentStatementsLen {
+		ifStmt += "if (" + uselessArrayNames[1] + "[" + strconv.Itoa(randomIndex) + "] % 2 == 0) {"
+		for i := statementsSplitIndex; i < independentStatementsLen; i++ {
+			ifStmt += independentStatements[i]
+		}
+	}
+
+	body := firstArrayDeclaration + secondArrayDeclaration + ifStmt
+	fmt.Println(body)
+
 }
 
 func (mf *ManipulatedFunction) replaceReturnStmtWithVariables(retVarNames []string, retParameterTypes []string) {
@@ -301,10 +387,20 @@ func ManipulateCalledFunctionsBodies() string {
 			manipulatedFunc := ManipulatedFunction{}
 			manipulatedFunc.body, _ = helpers.CopyString(functionDef.body)
 
+			var arrNames [2]string
+			newVarName := variableInfo.GetLatestDashVariableName() + "_"
+			for i := 0; i < 2; i++ {
+				for variableInfo.NameIsUsed(newVarName) {
+					newVarName += "_"
+				}
+				arrNames[i] = newVarName
+			}
+			newVarName += "_"
+
+			manipulatedFunc.insertOpaquePredicates(arrNames)
+
 			manipulatedFunc.replaceFunctionParametersWithArguments(functionDef.parameterNames, functionCall.args)
 			retVarNames := make([]string, len(functionDef.retParameterTypes))
-
-			newVarName := variableInfo.GetLatestDashVariableName() + "_"
 
 			for i := 0; i < len(functionDef.retParameterTypes); i++ {
 				for variableInfo.NameIsUsed(newVarName) {
@@ -312,7 +408,6 @@ func ManipulateCalledFunctionsBodies() string {
 				}
 				retVarNames[i] = newVarName
 			}
-			newVarName += "_"
 
 			manipulatedFunc.replaceReturnStmtWithVariables(retVarNames, functionDef.retParameterTypes)
 
