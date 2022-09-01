@@ -37,55 +37,6 @@ type ManipulatedFunction struct {
 	body FunctionBody
 }
 
-func getFunctionCalls(jsonAST map[string]interface{}, sourceString string) []*FunctionCall {
-
-	nodes := jsonAST["nodes"]
-	functionsCalls := make([]*FunctionCall, 0)
-	functionsCalls = storeFunctionCalls(nodes, functionsCalls, sourceString)
-	return functionsCalls
-}
-
-func storeFunctionCalls(node interface{}, functionsCalls []*FunctionCall, sourceString string) []*FunctionCall {
-	switch node.(type) {
-	case []interface{}:
-		nodeArr := node.([]interface{})
-		for _, element := range nodeArr {
-			functionsCalls = storeFunctionCalls(element, functionsCalls, sourceString)
-		}
-	case map[string]interface{}:
-		nodeMap := node.(map[string]interface{})
-		for key, value := range nodeMap {
-			if key == "nodeType" && value == "FunctionCall" {
-				expressionNode := nodeMap["expression"]
-				expressionNodeMap := expressionNode.(map[string]interface{})
-				functionName := expressionNodeMap["name"].(string)
-				argsList := findFunctionCallArgumentValues(nodeMap, sourceString)
-				functionSrc := nodeMap["src"].(string)
-				functionSrcParts := strings.Split(functionSrc, ":")
-				functionStartIndex, _ := strconv.Atoi(functionSrcParts[0])
-				functionCallLen, _ := strconv.Atoi(functionSrcParts[1])
-				functionCall := FunctionCall{
-					name:          functionName,
-					args:          argsList,
-					indexInSource: functionStartIndex,
-					callLen:       functionCallLen,
-				}
-				functionsCalls = append(functionsCalls, &functionCall)
-
-			} else {
-				_, okArr := value.([]interface{})
-				_, okMap := value.(map[string]interface{})
-
-				if okArr || okMap {
-					functionsCalls = storeFunctionCalls(value, functionsCalls, sourceString)
-				}
-			}
-		}
-	}
-
-	return functionsCalls
-}
-
 func getFunctionDefinitions(jsonAST map[string]interface{}) []map[string]interface{} {
 	nodes := jsonAST["nodes"]
 	functionDefinitionNodes := make([]map[string]interface{}, 0)
@@ -471,14 +422,20 @@ func ManipulateCalledFunctionsBodies() string {
 	contract := contractprovider.SolidityContractInstance()
 	jsonAST := contract.GetJsonCompactAST()
 	sourceCodeString := contract.GetSourceCode()
-	functionCalls := getFunctionCalls(jsonAST, sourceCodeString)
+	functionInfo := processinformation.FunctionInformation()
+	functionCalls := functionInfo.GetFunctionCalls()
+	if functionCalls == nil {
+		functionCalls = functionInfo.ExtractFunctionCalls(jsonAST, sourceCodeString)
+	}
+
+	//functionCalls := getFunctionCalls(jsonAST, sourceCodeString)
 
 	fmt.Println(functionCalls)
 
 	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
 
 	sort.Slice(functionCalls, func(i, j int) bool {
-		return functionCalls[i].indexInSource < functionCalls[j].indexInSource
+		return functionCalls[i].IndexInSource < functionCalls[j].IndexInSource
 	})
 
 	//stringIndexIncrease := 0
@@ -502,7 +459,7 @@ func ManipulateCalledFunctionsBodies() string {
 	for _, functionCall := range functionCalls {
 		//functionDef, exists := extractedFunctionDefinitions[functionCall.name]
 		//if !exists {
-		functionDef := extractFunctionDefinition(jsonAST, functionCall.name, originalSourceString)
+		functionDef := extractFunctionDefinition(jsonAST, functionCall.Name, originalSourceString)
 		//}
 		if functionDef != nil {
 
@@ -526,7 +483,7 @@ func ManipulateCalledFunctionsBodies() string {
 
 			manipulatedFunc.insertOpaquePredicates(arrNames, functionDef.topLevelDeclarationsIndexes)
 
-			manipulatedFunc.replaceFunctionParametersWithArguments(functionDef.parameterNames, functionCall.args)
+			manipulatedFunc.replaceFunctionParametersWithArguments(functionDef.parameterNames, functionCall.Args)
 			retVarNames := make([]string, len(functionDef.retParameterTypes))
 
 			for i := 0; i < len(functionDef.retParameterTypes); i++ {
@@ -538,8 +495,8 @@ func ManipulateCalledFunctionsBodies() string {
 
 			manipulatedFunc.replaceReturnStmtWithVariables(retVarNames, functionDef.retParameterTypes)
 
-			funcCallStart := functionCall.indexInSource
-			funcCallEnd := functionCall.indexInSource + functionCall.callLen
+			funcCallStart := functionCall.IndexInSource
+			funcCallEnd := functionCall.IndexInSource + functionCall.CallLen
 
 			numToAdd := sourceCodeChangeInfo.NumToAddToSearch(funcCallStart)
 			// newSourceCodeIndex := funcCallStart + numToAdd
@@ -575,8 +532,8 @@ func ManipulateCalledFunctionsBodies() string {
 			// fmt.Println(newSourceCodeIndex)
 
 			sourceCodeString = sourceCodeString[:funcCallStart+numToAdd] + insertString + sourceCodeString[funcCallEnd+numToAdd:]
-			stringLenDiff := len(insertString) - functionCall.callLen
-			smallerStringLen := functionCall.callLen
+			stringLenDiff := len(insertString) - functionCall.CallLen
+			smallerStringLen := functionCall.CallLen
 			if stringLenDiff < 0 {
 				smallerStringLen = len(insertString)
 				// fmt.Println("Smaller")
