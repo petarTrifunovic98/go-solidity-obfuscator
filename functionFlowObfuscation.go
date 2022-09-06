@@ -37,164 +37,6 @@ type ManipulatedFunction struct {
 	body FunctionBody
 }
 
-func getFunctionDefinitions(jsonAST map[string]interface{}) []map[string]interface{} {
-	nodes := jsonAST["nodes"]
-	functionDefinitionNodes := make([]map[string]interface{}, 0)
-	functionDefinitionNodes = storeAllFunctionDefinitionNodes(nodes, functionDefinitionNodes)
-	return functionDefinitionNodes
-}
-
-func storeAllFunctionDefinitionNodes(node interface{}, functionNodes []map[string]interface{}) []map[string]interface{} {
-	switch node.(type) {
-	case []interface{}:
-		nodeArr := node.([]interface{})
-		for _, element := range nodeArr {
-			functionNodes = storeAllFunctionDefinitionNodes(element, functionNodes)
-		}
-	case map[string]interface{}:
-		nodeMap := node.(map[string]interface{})
-		for key, value := range nodeMap {
-			if key == "nodeType" && value == "FunctionDefinition" {
-				functionNodes = append(functionNodes, nodeMap)
-			} else {
-				_, okArr := value.([]interface{})
-				_, okMap := value.(map[string]interface{})
-
-				if okArr || okMap {
-					functionNodes = storeAllFunctionDefinitionNodes(value, functionNodes)
-				}
-			}
-		}
-	}
-
-	return functionNodes
-}
-
-func findFunctionDefinitionNode(node interface{}, functionName string) map[string]interface{} {
-	switch node.(type) {
-	case []interface{}:
-		nodeArr := node.([]interface{})
-		for _, element := range nodeArr {
-			res := findFunctionDefinitionNode(element, functionName)
-			if res != nil {
-				return res
-			}
-		}
-	case map[string]interface{}:
-		nodeMap := node.(map[string]interface{})
-		for key, value := range nodeMap {
-			if key == "nodeType" && value == "FunctionDefinition" {
-				if name, ok := nodeMap["name"]; ok && name.(string) == functionName {
-					return nodeMap
-				}
-			} else {
-				_, okArr := value.([]interface{})
-				_, okMap := value.(map[string]interface{})
-
-				if okArr || okMap {
-					res := findFunctionDefinitionNode(value, functionName)
-					if res != nil {
-						return res
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func findFunctionDefinitionBody(functionDefinitionNode map[string]interface{}, sourceString string) FunctionBody {
-	nameLocationField := functionDefinitionNode["nameLocation"]
-	nameLocationFieldParts := strings.Split((nameLocationField.(string)), ":")
-	functionDefinitionStart, _ := strconv.Atoi(nameLocationFieldParts[0])
-	sourceString = sourceString[functionDefinitionStart:]
-	functionBodyStartIndex := strings.Index(sourceString, "{")
-	indexInSource := functionDefinitionStart + functionBodyStartIndex
-	index := functionBodyStartIndex + 1
-	counter := 1
-
-	for counter > 0 {
-		if sourceString[index] == '{' {
-			counter++
-		} else if sourceString[index] == '}' {
-			counter--
-		}
-		index++
-	}
-
-	return FunctionBody{
-		bodyContent:   sourceString[functionBodyStartIndex+1 : index-1],
-		indexInSource: indexInSource,
-	}
-}
-
-func findFunctionParametersNames(functionDefinitionNode map[string]interface{}) []string {
-	parametersField := functionDefinitionNode["parameters"].(map[string]interface{})
-	parametersList := parametersField["parameters"]
-
-	parameterNamesList := make([]string, 0)
-
-	for _, parameterInterface := range parametersList.([]interface{}) {
-		parameterMap := parameterInterface.(map[string]interface{})
-		parameterNamesList = append(parameterNamesList, parameterMap["name"].(string))
-	}
-
-	return parameterNamesList
-}
-
-func findFunctionRetParameterTypes(functionDefinitionNode map[string]interface{}) []string {
-	retParametersField := functionDefinitionNode["returnParameters"].(map[string]interface{})
-	retParametersList := retParametersField["parameters"]
-
-	retParametersTypesList := make([]string, 0)
-
-	for _, retParameterInterface := range retParametersList.([]interface{}) {
-		retParameterMap := retParameterInterface.(map[string]interface{})
-		retParameterTypeDesc := retParameterMap["typeDescriptions"].(map[string]interface{})
-		retParametersTypesList = append(retParametersTypesList, retParameterTypeDesc["typeString"].(string))
-	}
-
-	return retParametersTypesList
-}
-
-func findFunctionTopLevelDeclarationStatements(FunctionDefinitionNode map[string]interface{}) []int {
-	bodyField := FunctionDefinitionNode["body"].(map[string]interface{})
-	statementsList := bodyField["statements"].([]interface{})
-	ret := make([]int, 0)
-
-	for _, statementInterface := range statementsList {
-		statementMap := statementInterface.(map[string]interface{})
-		if statementMap["nodeType"].(string) == "VariableDeclarationStatement" {
-			statementSrc := statementMap["src"].(string)
-			statementSrcParts := strings.Split(statementSrc, ":")
-			statementStart, _ := strconv.Atoi(statementSrcParts[0])
-			adjustedStatementStart := statementStart
-			ret = append(ret, adjustedStatementStart)
-		}
-	}
-
-	return ret
-
-}
-
-func findFunctionCallArgumentValues(functionCallNodeMap map[string]interface{}, sourceString string) []string {
-	argumentsList := functionCallNodeMap["arguments"].([]interface{})
-
-	argumentValuesList := make([]string, 0)
-
-	for _, argumentInterface := range argumentsList {
-		argumentMap := argumentInterface.(map[string]interface{})
-		argumentSrc := argumentMap["src"].(string)
-		argumentSrcParts := strings.Split(argumentSrc, ":")
-		argumentStart, _ := strconv.Atoi(argumentSrcParts[0])
-		argumentLen, _ := strconv.Atoi(argumentSrcParts[1])
-
-		argumentValuesList = append(argumentValuesList, sourceString[argumentStart:argumentStart+argumentLen])
-	}
-
-	return argumentValuesList
-}
-
 func findIndependentStatements(functionBody string) []string {
 	bodyCopy, _ := helpers.CopyString(functionBody)
 
@@ -221,53 +63,6 @@ func findIndependentStatements(functionBody string) []string {
 	return statements
 
 	// return nil
-}
-
-func extractAllFunctionDefinitions(jsonAST map[string]interface{}, sourceCode string) []*FunctionDefinition {
-	functionDefinitionNodes := getFunctionDefinitions(jsonAST)
-	functionDefinitions := make([]*FunctionDefinition, 0)
-
-	for _, functionDefinitionNode := range functionDefinitionNodes {
-		if functionDefinitionNode != nil {
-			body := findFunctionDefinitionBody(functionDefinitionNode, sourceCode)
-			parameterNames := findFunctionParametersNames(functionDefinitionNode)
-			retParameterNames := findFunctionRetParameterTypes(functionDefinitionNode)
-			topLevelDeclarationsIndexes := findFunctionTopLevelDeclarationStatements(functionDefinitionNode)
-
-			functionDefinitions = append(functionDefinitions, &FunctionDefinition{
-				body:                        body,
-				parameterNames:              parameterNames,
-				retParameterTypes:           retParameterNames,
-				topLevelDeclarationsIndexes: topLevelDeclarationsIndexes,
-			})
-		}
-	}
-
-	return functionDefinitions
-}
-
-func extractFunctionDefinition(jsonAST map[string]interface{}, functionName string, sourceString string) *FunctionDefinition {
-	node := jsonAST["nodes"]
-	functionDefinitionNode := findFunctionDefinitionNode(node, functionName)
-	if functionDefinitionNode == nil {
-		return nil
-	}
-
-	body := findFunctionDefinitionBody(functionDefinitionNode, sourceString)
-	parametersNames := findFunctionParametersNames(functionDefinitionNode)
-	retParametersNames := findFunctionRetParameterTypes(functionDefinitionNode)
-	topLevelDeclarationsIndexes := findFunctionTopLevelDeclarationStatements(functionDefinitionNode)
-	//independentStatements := findIndependentStatements(body)
-
-	functionDefinition := FunctionDefinition{
-		body:                        body,
-		parameterNames:              parametersNames,
-		retParameterTypes:           retParametersNames,
-		topLevelDeclarationsIndexes: topLevelDeclarationsIndexes,
-		//independentStatements: independentStatements,
-	}
-
-	return &functionDefinition
 }
 
 func (mf *ManipulatedFunction) replaceFunctionParametersWithArguments(functionParameters []string, functionArguments []string) {
@@ -428,17 +223,11 @@ func ManipulateCalledFunctionsBodies() string {
 		functionCalls = functionInfo.ExtractFunctionCalls(jsonAST, sourceCodeString)
 	}
 
-	//functionCalls := getFunctionCalls(jsonAST, sourceCodeString)
-
-	fmt.Println(functionCalls)
-
 	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
 
 	sort.Slice(functionCalls, func(i, j int) bool {
 		return functionCalls[i].IndexInSource < functionCalls[j].IndexInSource
 	})
-
-	//stringIndexIncrease := 0
 
 	var sb strings.Builder
 	if _, err := sb.WriteString(sourceCodeString); err != nil {
@@ -446,7 +235,6 @@ func ManipulateCalledFunctionsBodies() string {
 		fmt.Println(err)
 		return ""
 	}
-
 	originalSourceString := sb.String()
 
 	variableInfo := processinformation.VariableInformation()
@@ -457,17 +245,16 @@ func ManipulateCalledFunctionsBodies() string {
 	}
 
 	for _, functionCall := range functionCalls {
-		//functionDef, exists := extractedFunctionDefinitions[functionCall.name]
-		//if !exists {
-		functionDef := extractFunctionDefinition(jsonAST, functionCall.Name, originalSourceString)
-		//}
+		functionDef, exists := functionInfo.GetSpecificFunctionDefinition(functionCall.Name)
+		if !exists {
+			functionDef = functionInfo.ExtractFunctionDefinition(jsonAST, functionCall.Name, originalSourceString)
+		}
 		if functionDef != nil {
-
-			manipulatedFuncBodyContent, _ := helpers.CopyString(functionDef.body.bodyContent)
+			manipulatedFuncBodyContent, _ := helpers.CopyString(functionDef.Body.BodyContent)
 			manipulatedFunc := ManipulatedFunction{
 				body: FunctionBody{
 					bodyContent:   manipulatedFuncBodyContent,
-					indexInSource: functionDef.body.indexInSource,
+					indexInSource: functionDef.Body.IndexInSource,
 				},
 			}
 
@@ -481,38 +268,25 @@ func ManipulateCalledFunctionsBodies() string {
 			}
 			newVarName += "_"
 
-			manipulatedFunc.insertOpaquePredicates(arrNames, functionDef.topLevelDeclarationsIndexes)
-
-			manipulatedFunc.replaceFunctionParametersWithArguments(functionDef.parameterNames, functionCall.Args)
-			retVarNames := make([]string, len(functionDef.retParameterTypes))
-
-			for i := 0; i < len(functionDef.retParameterTypes); i++ {
+			manipulatedFunc.insertOpaquePredicates(arrNames, functionDef.TopLevelDeclarationsIndexes)
+			manipulatedFunc.replaceFunctionParametersWithArguments(functionDef.ParameterNames, functionCall.Args)
+			retVarNames := make([]string, len(functionDef.RetParameterTypes))
+			for i := 0; i < len(functionDef.RetParameterTypes); i++ {
 				for variableInfo.NameIsUsed(newVarName) {
 					newVarName += "_"
 				}
 				retVarNames[i] = newVarName
 			}
-
-			manipulatedFunc.replaceReturnStmtWithVariables(retVarNames, functionDef.retParameterTypes)
+			manipulatedFunc.replaceReturnStmtWithVariables(retVarNames, functionDef.RetParameterTypes)
 
 			funcCallStart := functionCall.IndexInSource
 			funcCallEnd := functionCall.IndexInSource + functionCall.CallLen
-
 			numToAdd := sourceCodeChangeInfo.NumToAddToSearch(funcCallStart)
-			// newSourceCodeIndex := funcCallStart + numToAdd
-
-			// i := funcCallStart + stringIndexIncrease
 			i := funcCallStart + numToAdd
-
-			// fmt.Print("i: ")
-			// fmt.Print(i)
-			// fmt.Print("; RBTreeWithDLList calculated i: ")
-			// fmt.Println(newSourceCodeIndex)
 			for sourceCodeString[i] != ';' && sourceCodeString[i] != '{' && sourceCodeString[i] != '}' {
 				i--
 			}
 			sourceCodeString = sourceCodeString[:i+1] + manipulatedFunc.body.bodyContent + sourceCodeString[i+1:]
-			//stringIndexIncrease += len(manipulatedFunc.body)
 			sourceCodeChangeInfo.ReportSourceCodeChange(i+1, len(manipulatedFunc.body.bodyContent))
 
 			insertString := "("
@@ -525,34 +299,22 @@ func ManipulateCalledFunctionsBodies() string {
 			insertString += ")"
 
 			numToAdd = sourceCodeChangeInfo.NumToAddToSearch(funcCallStart)
-			// newSourceCodeIndex = funcCallStart + numToAdd
-			// fmt.Print("i: ")
-			// fmt.Print(funcCallStart + stringIndexIncrease)
-			// fmt.Print("; RBTreeWithDLList calculated i: ")
-			// fmt.Println(newSourceCodeIndex)
 
 			sourceCodeString = sourceCodeString[:funcCallStart+numToAdd] + insertString + sourceCodeString[funcCallEnd+numToAdd:]
 			stringLenDiff := len(insertString) - functionCall.CallLen
 			smallerStringLen := functionCall.CallLen
 			if stringLenDiff < 0 {
 				smallerStringLen = len(insertString)
-				// fmt.Println("Smaller")
-			} /*else {
-				fmt.Println("Bigger")
-			}*/
+			}
 			if stringLenDiff != 0 {
 				sourceCodeChangeInfo.ReportSourceCodeChange(funcCallStart+numToAdd+smallerStringLen, stringLenDiff)
 			}
-			//stringIndexIncrease += len(insertString) - functionCall.callLen
 
 			variableInfo.SetLatestDashVariableName(newVarName)
 		}
 	}
 
 	sourceCodeChangeInfo.DisplayTree()
-
 	contract.SetSourceCode(sourceCodeString)
-
 	return sourceCodeString
-
 }
