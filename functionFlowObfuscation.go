@@ -37,32 +37,45 @@ type ManipulatedFunction struct {
 	body FunctionBody
 }
 
-func findIndependentStatements(functionBody string) []string {
+func findIndependentStatements(functionBody string) map[int]string {
+	referentBodyCopy, _ := helpers.CopyString(functionBody)
 	bodyCopy, _ := helpers.CopyString(functionBody)
+	fmt.Println(bodyCopy)
 
-	statements := make([]string, 0)
+	statements := make(map[int]string, 0)
 
 	stmtStart := 0
 	parenthesesCounter := 0
+	whitespaceDiff := 0
 
 	for ind, character := range bodyCopy {
 		if character == ';' && parenthesesCounter == 0 {
-			statements = append(statements, bodyCopy[stmtStart:ind+1])
+			independentStmt := strings.TrimSpace(bodyCopy[stmtStart : ind+1])
+			i := 0
+			for referentBodyCopy[stmtStart+i] != independentStmt[0] {
+				i++
+			}
+			whitespaceDiff = i
+			statements[stmtStart+whitespaceDiff] = strings.TrimSpace(bodyCopy[stmtStart : ind+1])
+			fmt.Print(stmtStart + whitespaceDiff)
+			fmt.Print(": ")
+			fmt.Println(statements[stmtStart+whitespaceDiff])
 			stmtStart = ind + 1
 		} else if character == '{' {
 			parenthesesCounter++
 		} else if character == '}' {
 			parenthesesCounter--
 			if parenthesesCounter == 0 {
-				statements = append(statements, bodyCopy[stmtStart:ind+1])
+				statements[stmtStart+whitespaceDiff] = strings.TrimSpace(bodyCopy[stmtStart : ind+1])
+				fmt.Print(stmtStart + whitespaceDiff)
+				fmt.Print(": ")
+				fmt.Println(statements[stmtStart+whitespaceDiff])
 				stmtStart = ind + 1
 			}
 		}
 	}
 
 	return statements
-
-	// return nil
 }
 
 func (mf *ManipulatedFunction) replaceFunctionParametersWithArguments(functionParameters []string, functionArguments []string) {
@@ -133,8 +146,6 @@ func (mf *ManipulatedFunction) insertOpaquePredicates(uselessArrayNames [2]strin
 		return
 	}
 
-	//extractedDeclarations := make([]string, 0)
-
 	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
 	realBodyIndexInSource := mf.body.indexInSource + sourceCodeChangeInfo.NumToAddToSearch(mf.body.indexInSource)
 
@@ -146,7 +157,14 @@ func (mf *ManipulatedFunction) insertOpaquePredicates(uselessArrayNames [2]strin
 			i++
 		}
 		fmt.Println("###############")
+		fmt.Print(declIndexInBody)
+		fmt.Print(": ")
 		fmt.Println(mf.body.bodyContent[declIndexInBody-1 : i])
+		if stmt, ok := independentStatements[declIndexInBody-1]; ok {
+			fmt.Println(stmt)
+		} else {
+			fmt.Println("Is not independent")
+		}
 		fmt.Println("###############")
 	}
 
