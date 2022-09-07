@@ -66,6 +66,12 @@ func findIndependentStatements(functionBody string) map[int]string {
 		} else if character == '}' {
 			parenthesesCounter--
 			if parenthesesCounter == 0 {
+				independentStmt := strings.TrimSpace(bodyCopy[stmtStart : ind+1])
+				i := 0
+				for referentBodyCopy[stmtStart+i] != independentStmt[0] {
+					i++
+				}
+				whitespaceDiff = i
 				statements[stmtStart+whitespaceDiff] = strings.TrimSpace(bodyCopy[stmtStart : ind+1])
 				fmt.Print(stmtStart + whitespaceDiff)
 				fmt.Print(": ")
@@ -141,13 +147,11 @@ func (mf *ManipulatedFunction) replaceReturnStmtWithVariables(retVarNames []stri
 
 func (mf *ManipulatedFunction) insertOpaquePredicates(uselessArrayNames [2]string, topLevelDeclIndexes []int) {
 	independentStatements := findIndependentStatements(mf.body.bodyContent)
-	independentStatementsLen := len(independentStatements)
-	if independentStatementsLen < 2 {
-		return
-	}
 
 	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
 	realBodyIndexInSource := mf.body.indexInSource + sourceCodeChangeInfo.NumToAddToSearch(mf.body.indexInSource)
+
+	topLevelDeclarations := make([]string, 0)
 
 	for _, topLevelDeclIndex := range topLevelDeclIndexes {
 		realTopLevelDeclIndex := topLevelDeclIndex + sourceCodeChangeInfo.NumToAddToSearch(topLevelDeclIndex)
@@ -159,13 +163,35 @@ func (mf *ManipulatedFunction) insertOpaquePredicates(uselessArrayNames [2]strin
 		fmt.Println("###############")
 		fmt.Print(declIndexInBody)
 		fmt.Print(": ")
-		fmt.Println(mf.body.bodyContent[declIndexInBody-1 : i])
+		fmt.Println(mf.body.bodyContent[declIndexInBody-1 : i+1])
+		topLevelDeclarations = append(topLevelDeclarations, mf.body.bodyContent[declIndexInBody-1:i+1])
 		if stmt, ok := independentStatements[declIndexInBody-1]; ok {
+			delete(independentStatements, declIndexInBody-1)
 			fmt.Println(stmt)
 		} else {
 			fmt.Println("Is not independent")
 		}
 		fmt.Println("###############")
+	}
+
+	fmt.Println("map: ", independentStatements)
+	fmt.Println("array: ", topLevelDeclarations)
+
+	independentStmtsKeys := make([]int, 0)
+	for key := range independentStatements {
+		independentStmtsKeys = append(independentStmtsKeys, key)
+	}
+	sort.Ints(independentStmtsKeys)
+
+	independentStmtsList := make([]string, 0)
+	for _, key := range independentStmtsKeys {
+		independentStmtsList = append(independentStmtsList, independentStatements[key])
+	}
+
+	independentStatementsLen := len(independentStatements)
+
+	if independentStatementsLen < 2 {
+		return
 	}
 
 	randomSeeder := rand.NewSource(time.Now().UnixNano())
@@ -182,6 +208,11 @@ func (mf *ManipulatedFunction) insertOpaquePredicates(uselessArrayNames [2]strin
 		for statementsSplitIndex1 == statementsSplitIndex2 {
 			statementsSplitIndex2 = randomGenerator.Intn(independentStatementsLen) + 1
 		}
+	}
+
+	var linkedDeclarations string
+	for _, declaration := range topLevelDeclarations {
+		linkedDeclarations += declaration + "\n"
 	}
 
 	//replace "7" with a declared constant
@@ -203,19 +234,19 @@ func (mf *ManipulatedFunction) insertOpaquePredicates(uselessArrayNames [2]strin
 	randomIndex := randomGenerator.Intn(arraySize)
 	ifStmt := "if (" + uselessArrayNames[0] + "[" + strconv.Itoa(randomIndex) + "] % 2 == 0) {"
 	for i := 0; i < statementsSplitIndex1; i++ {
-		ifStmt += independentStatements[i]
+		ifStmt += independentStmtsList[i]
 	}
 	ifStmt += "\n}\n"
 
 	if statementsSplitIndex1 < independentStatementsLen {
 		ifStmt += "if (" + uselessArrayNames[1] + "[" + strconv.Itoa(randomIndex) + "] % 2 == 0) {"
 		for i := statementsSplitIndex1; i < independentStatementsLen; i++ {
-			ifStmt += independentStatements[i]
+			ifStmt += independentStmtsList[i]
 		}
 		ifStmt += "\n}\n"
 	}
 
-	body := firstArrayDeclaration + secondArrayDeclaration + ifStmt
+	body := linkedDeclarations + firstArrayDeclaration + secondArrayDeclaration + ifStmt
 	fmt.Println(body)
 	fmt.Println("---------------------")
 
@@ -283,8 +314,8 @@ func ManipulateCalledFunctionsBodies() string {
 					newVarName += "_"
 				}
 				arrNames[i] = newVarName
+				newVarName += "_"
 			}
-			newVarName += "_"
 
 			manipulatedFunc.insertOpaquePredicates(arrNames, functionDef.TopLevelDeclarationsIndexes)
 			manipulatedFunc.replaceFunctionParametersWithArguments(functionDef.ParameterNames, functionCall.Args)
