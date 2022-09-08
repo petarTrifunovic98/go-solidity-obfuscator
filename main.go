@@ -120,10 +120,11 @@ func main() {
 	byteValue, _ = ioutil.ReadAll(sourceFile)
 	sourceString := string(byteValue)
 
-	sourceString = ManipulateCalledFunctionsBodies()
-	sourceString = ReplaceVarNames()
-	sourceString = ReplaceComments()
-	sourceString = ReplaceLiterals()
+	sourceString = ManipulateDefinedFunctionBodies()
+	//sourceString = ManipulateCalledFunctionsBodies()
+	//sourceString = ReplaceVarNames()
+	//sourceString = ReplaceComments()
+	//sourceString = ReplaceLiterals()
 
 	outputFile, errOutput := os.Create("../contract_examples/obfuscated2.sol")
 	defer outputFile.Close()

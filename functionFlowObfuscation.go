@@ -13,30 +13,6 @@ import (
 	"time"
 )
 
-// type FunctionBody struct {
-// 	bodyContent   string
-// 	indexInSource int
-// }
-
-// type FunctionDefinition struct {
-// 	body                        FunctionBody
-// 	parameterNames              []string
-// 	retParameterTypes           []string
-// 	independentStatements       []string
-// 	topLevelDeclarationsIndexes []int
-// }
-
-// type FunctionCall struct {
-// 	name          string
-// 	args          []string
-// 	indexInSource int
-// 	callLen       int
-// }
-
-// type ManipulatedFunction struct {
-// 	body FunctionBody
-// }
-
 func checkElseStmtFollows(code string) bool {
 	code = strings.TrimSpace(code)
 	if len(code) < 5 {
@@ -50,7 +26,6 @@ func checkElseStmtFollows(code string) bool {
 func findIndependentStatements(functionBody string) map[int]string {
 	referentBodyCopy, _ := helpers.CopyString(functionBody)
 	bodyCopy, _ := helpers.CopyString(functionBody)
-	fmt.Println(bodyCopy)
 
 	statements := make(map[int]string, 0)
 
@@ -67,9 +42,6 @@ func findIndependentStatements(functionBody string) map[int]string {
 			}
 			whitespaceDiff = i
 			statements[stmtStart+whitespaceDiff] = strings.TrimSpace(bodyCopy[stmtStart : ind+1])
-			fmt.Print(stmtStart + whitespaceDiff)
-			fmt.Print(": ")
-			fmt.Println(statements[stmtStart+whitespaceDiff])
 			stmtStart = ind + 1
 		} else if character == '{' {
 			parenthesesCounter++
@@ -83,9 +55,6 @@ func findIndependentStatements(functionBody string) map[int]string {
 				}
 				whitespaceDiff = i
 				statements[stmtStart+whitespaceDiff] = strings.TrimSpace(bodyCopy[stmtStart : ind+1])
-				fmt.Print(stmtStart + whitespaceDiff)
-				fmt.Print(": ")
-				fmt.Println(statements[stmtStart+whitespaceDiff])
 				stmtStart = ind + 1
 			}
 		}
@@ -171,22 +140,11 @@ func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessA
 		for newBody[i] != ';' {
 			i++
 		}
-		fmt.Println("###############")
-		fmt.Print(declIndexInBody)
-		fmt.Print(": ")
-		fmt.Println(newBody[declIndexInBody-1 : i+1])
-		topLevelDeclarations = append(topLevelDeclarations, newBody[declIndexInBody-1:i+1])
-		if stmt, ok := independentStatements[declIndexInBody-1]; ok {
-			delete(independentStatements, declIndexInBody-1)
-			fmt.Println(stmt)
-		} else {
-			fmt.Println("Is not independent")
+		topLevelDeclarations = append(topLevelDeclarations, newBody[declIndexInBody:i+1])
+		if _, ok := independentStatements[declIndexInBody]; ok {
+			delete(independentStatements, declIndexInBody)
 		}
-		fmt.Println("###############")
 	}
-
-	fmt.Println("map: ", independentStatements)
-	fmt.Println("array: ", topLevelDeclarations)
 
 	independentStmtsKeys := make([]int, 0)
 	for key := range independentStatements {
@@ -198,6 +156,7 @@ func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessA
 	for _, key := range independentStmtsKeys {
 		independentStmtsList = append(independentStmtsList, independentStatements[key])
 	}
+	fmt.Println("independents: ", independentStmtsList, "len: ", len(independentStatements))
 
 	independentStatementsLen := len(independentStatements)
 
@@ -266,7 +225,7 @@ func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessA
 		if statementsSplitIndex1 < independentStatementsLen {
 			ifStmt += "else {"
 		} else {
-			ifStmt += "if (" + uselessArrayNames[1] + "[" + strconv.Itoa(randomIndex) + "] % 2 != 0 {"
+			ifStmt += "if (" + uselessArrayNames[1] + "[" + strconv.Itoa(randomIndex) + "] % 2 != 0) {"
 		}
 		for i := statementsSplitIndex2; i < independentStatementsLen; i++ {
 			ifStmt += independentStmtsList[i]
@@ -275,24 +234,78 @@ func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessA
 	}
 
 	newBody = linkedDeclarations + firstArrayDeclaration + secondArrayDeclaration + ifStmt
-	fmt.Println(newBody)
-	fmt.Println("---------------------")
 
 	return newBody
 }
 
-func ManipulateDefinedFunctionBodies() {
+func ManipulateDefinedFunctionBodies() string {
+	contract := contractprovider.SolidityContractInstance()
+	jsonAST := contract.GetJsonCompactAST()
+	sourceCodeString := contract.GetSourceCode()
+	functionInfo := processinformation.FunctionInformation()
+	functionDefinitions := functionInfo.ExtractAllFunctionDefinitions(jsonAST, sourceCodeString)
+	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
 
-	// contract := contractprovider.SolidityContractInstance()
-	// jsonAST := contract.GetJsonCompactAST()
-	// sourceCodeString := contract.GetSourceCode()
-	// functionInfo := processinformation.FunctionInformation()
-	// functionDefinitions := functionInfo.ExtractAllFunctionDefinitions(jsonAST, sourceCodeString)
+	variableInfo := processinformation.VariableInformation()
+	namesSet := variableInfo.GetVariableNamesSet()
+	if namesSet == nil {
+		namesSet = getVarNames(jsonAST) //move to another place from VariableNameObfuscation.go
+		variableInfo.SetVariableNamesSet(namesSet)
+	}
 
-	// for _, functionDefinition := range functionDefinitions {
-	// 	newBody, _ := functionDefinition.Body.BodyContent
-	// }
+	var newVarName string
 
+	for _, functionDefinition := range functionDefinitions {
+		newBodyContent, _ := helpers.CopyString(functionDefinition.Body.BodyContent)
+		newBodyIndex := functionDefinition.Body.IndexInSource
+
+		var arrNames [2]string
+		newVarName = variableInfo.GetLatestDashVariableName() + "_"
+		for i := 0; i < 2; i++ {
+			for variableInfo.NameIsUsed(newVarName) {
+				newVarName += "_"
+			}
+			arrNames[i] = newVarName
+			newVarName += "_"
+		}
+
+		newBodyContent = insertOpaquePredicates(newBodyContent, newBodyIndex, arrNames, functionDefinition.TopLevelDeclarationsIndexes)
+		fmt.Println("newBody:", newBodyContent)
+		fmt.Println("oldBody:", functionDefinition.Body.BodyContent)
+		numToAdd := sourceCodeChangeInfo.NumToAddToSearch(newBodyIndex)
+		fmt.Println("numToAdd: ", numToAdd)
+		fmt.Println(functionDefinition.Name)
+		fmt.Println(newBodyIndex)
+		fmt.Println("oldScLen: ", len(sourceCodeString))
+		secondSourceCodeStringPart := sourceCodeString[newBodyIndex+numToAdd+len(functionDefinition.Body.BodyContent):]
+		sourceCodeString = sourceCodeString[:newBodyIndex+numToAdd] + newBodyContent + secondSourceCodeStringPart
+		fmt.Println("first intermediate sclen: ", len(sourceCodeString))
+		fmt.Println("second start index: ", newBodyIndex+numToAdd+len(functionDefinition.Body.BodyContent))
+		fmt.Println("second adition sclen: ", len(sourceCodeString[newBodyIndex+numToAdd+len(functionDefinition.Body.BodyContent):]))
+		fmt.Println("first intermediate sclen: ", len(sourceCodeString))
+		fmt.Println("scLen: ", len(sourceCodeString))
+
+		fmt.Println("newBodyLen: ", len(newBodyContent))
+		fmt.Println("oldBodyLen: ", len(functionDefinition.Body.BodyContent))
+		stringLenDiff := len(newBodyContent) - len(functionDefinition.Body.BodyContent)
+		smallerStringLen := len(functionDefinition.Body.BodyContent)
+		if stringLenDiff < 0 {
+			smallerStringLen = len(newBodyContent)
+		}
+		if stringLenDiff != 0 {
+			fmt.Println("inserting")
+			sourceCodeChangeInfo.ReportSourceCodeChange(newBodyIndex+numToAdd+1+smallerStringLen, stringLenDiff)
+		}
+		functionDefinition.Body.BodyContent = newBodyContent
+
+		sourceCodeChangeInfo.DisplayTree()
+
+		fmt.Println("-------------------")
+	}
+
+	variableInfo.SetLatestDashVariableName(newVarName)
+	contract.SetSourceCode(sourceCodeString)
+	return sourceCodeString
 }
 
 func ManipulateCalledFunctionsBodies() string {
@@ -334,13 +347,6 @@ func ManipulateCalledFunctionsBodies() string {
 		}
 		if functionDef != nil {
 			newBodyContent, _ := helpers.CopyString(functionDef.Body.BodyContent)
-			newBodyIndex := functionDef.Body.IndexInSource
-			// manipulatedFunc := ManipulatedFunction{
-			// 	body: FunctionBody{
-			// 		bodyContent:   manipulatedFuncBodyContent,
-			// 		indexInSource: functionDef.Body.IndexInSource,
-			// 	},
-			// }
 
 			var arrNames [2]string
 			newVarName := variableInfo.GetLatestDashVariableName() + "_"
@@ -352,7 +358,7 @@ func ManipulateCalledFunctionsBodies() string {
 				newVarName += "_"
 			}
 
-			newBodyContent = insertOpaquePredicates(newBodyContent, newBodyIndex, arrNames, functionDef.TopLevelDeclarationsIndexes)
+			//newBodyContent = insertOpaquePredicates(newBodyContent, newBodyIndex, arrNames, functionDef.TopLevelDeclarationsIndexes)
 			newBodyContent = replaceFunctionParametersWithArguments(newBodyContent, functionDef.ParameterNames, functionCall.Args)
 			retVarNames := make([]string, len(functionDef.RetParameterTypes))
 			for i := 0; i < len(functionDef.RetParameterTypes); i++ {

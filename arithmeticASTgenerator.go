@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 	"regexp"
 	contractprovider "solidity-obfuscator/contractProvider"
@@ -131,6 +132,7 @@ func getLiterals(jsonAST map[string]interface{}) []string {
 	nodes := jsonAST["nodes"]
 	literalsList := make([]string, 0)
 	literalsList = storeLiterals(nodes, literalsList)
+	fmt.Println(literalsList)
 	return literalsList
 }
 

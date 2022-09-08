@@ -163,6 +163,7 @@ func (fi *functionInformation) ExtractAllFunctionDefinitions(jsonAST map[string]
 	for _, functionDefinitionNode := range functionDefinitionNodes {
 		if functionDefinitionNode != nil {
 			name := functionDefinitionNode["name"].(string)
+			fmt.Println("name: ", name)
 			body := findFunctionDefinitionBody(functionDefinitionNode, sourceCode)
 			parameterNames := findFunctionParametersNames(functionDefinitionNode)
 			retParameterNames := findFunctionRetParameterTypes(functionDefinitionNode)
@@ -241,9 +242,9 @@ func findFunctionDefinitionNode(node interface{}, functionName string) map[strin
 }
 
 func findFunctionDefinitionBody(functionDefinitionNodeMap map[string]interface{}, sourceString string) FunctionBody {
-	nameLocationField := functionDefinitionNodeMap["nameLocation"]
-	nameLocationFieldParts := strings.Split((nameLocationField.(string)), ":")
-	functionDefinitionStart, _ := strconv.Atoi(nameLocationFieldParts[0])
+	funcDefLocationField := functionDefinitionNodeMap["src"]
+	funcDefLocationFieldParts := strings.Split((funcDefLocationField.(string)), ":")
+	functionDefinitionStart, _ := strconv.Atoi(funcDefLocationFieldParts[0])
 	sourceString = sourceString[functionDefinitionStart:]
 	functionBodyStartIndex := strings.Index(sourceString, "{")
 	indexInSource := functionDefinitionStart + functionBodyStartIndex
@@ -261,7 +262,7 @@ func findFunctionDefinitionBody(functionDefinitionNodeMap map[string]interface{}
 
 	return FunctionBody{
 		BodyContent:   sourceString[functionBodyStartIndex+1 : index-1],
-		IndexInSource: indexInSource,
+		IndexInSource: indexInSource + 1,
 	}
 }
 
