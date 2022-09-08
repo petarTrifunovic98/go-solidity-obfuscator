@@ -37,6 +37,16 @@ type ManipulatedFunction struct {
 	body FunctionBody
 }
 
+func checkElseStmtFollows(code string) bool {
+	code = strings.TrimSpace(code)
+	if len(code) < 5 {
+		return false
+	}
+	codeToTest := code[0:5]
+	matched, _ := regexp.MatchString(`else\s`, codeToTest)
+	return matched
+}
+
 func findIndependentStatements(functionBody string) map[int]string {
 	referentBodyCopy, _ := helpers.CopyString(functionBody)
 	bodyCopy, _ := helpers.CopyString(functionBody)
@@ -49,7 +59,7 @@ func findIndependentStatements(functionBody string) map[int]string {
 	whitespaceDiff := 0
 
 	for ind, character := range bodyCopy {
-		if character == ';' && parenthesesCounter == 0 {
+		if character == ';' && parenthesesCounter == 0 && !checkElseStmtFollows(bodyCopy[ind+1:]) {
 			independentStmt := strings.TrimSpace(bodyCopy[stmtStart : ind+1])
 			i := 0
 			for referentBodyCopy[stmtStart+i] != independentStmt[0] {
@@ -65,7 +75,7 @@ func findIndependentStatements(functionBody string) map[int]string {
 			parenthesesCounter++
 		} else if character == '}' {
 			parenthesesCounter--
-			if parenthesesCounter == 0 {
+			if parenthesesCounter == 0 && !checkElseStmtFollows(bodyCopy[ind+1:]) {
 				independentStmt := strings.TrimSpace(bodyCopy[stmtStart : ind+1])
 				i := 0
 				for referentBodyCopy[stmtStart+i] != independentStmt[0] {
@@ -237,10 +247,27 @@ func (mf *ManipulatedFunction) insertOpaquePredicates(uselessArrayNames [2]strin
 		ifStmt += independentStmtsList[i]
 	}
 	ifStmt += "\n}\n"
+	ifStmt += "else {"
+	for i := 0; i < statementsSplitIndex2; i++ {
+		ifStmt += independentStmtsList[i]
+	}
+	ifStmt += "\n}\n"
 
 	if statementsSplitIndex1 < independentStatementsLen {
 		ifStmt += "if (" + uselessArrayNames[1] + "[" + strconv.Itoa(randomIndex) + "] % 2 == 0) {"
 		for i := statementsSplitIndex1; i < independentStatementsLen; i++ {
+			ifStmt += independentStmtsList[i]
+		}
+		ifStmt += "\n}\n"
+	}
+
+	if statementsSplitIndex2 < independentStatementsLen {
+		if statementsSplitIndex1 < independentStatementsLen {
+			ifStmt += "else {"
+		} else {
+			ifStmt += "if (" + uselessArrayNames[1] + "[" + strconv.Itoa(randomIndex) + "] % 2 != 0 {"
+		}
+		for i := statementsSplitIndex2; i < independentStatementsLen; i++ {
 			ifStmt += independentStmtsList[i]
 		}
 		ifStmt += "\n}\n"
