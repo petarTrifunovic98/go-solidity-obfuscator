@@ -7,14 +7,14 @@ import (
 	"sync"
 )
 
-type functionBody struct {
+type FunctionBody struct {
 	BodyContent   string
 	IndexInSource int
 }
 
 type FunctionDefinition struct {
 	Name                        string
-	Body                        functionBody
+	Body                        FunctionBody
 	ParameterNames              []string
 	RetParameterTypes           []string
 	IndependentStatements       []string
@@ -240,7 +240,7 @@ func findFunctionDefinitionNode(node interface{}, functionName string) map[strin
 	return nil
 }
 
-func findFunctionDefinitionBody(functionDefinitionNodeMap map[string]interface{}, sourceString string) functionBody {
+func findFunctionDefinitionBody(functionDefinitionNodeMap map[string]interface{}, sourceString string) FunctionBody {
 	nameLocationField := functionDefinitionNodeMap["nameLocation"]
 	nameLocationFieldParts := strings.Split((nameLocationField.(string)), ":")
 	functionDefinitionStart, _ := strconv.Atoi(nameLocationFieldParts[0])
@@ -259,7 +259,7 @@ func findFunctionDefinitionBody(functionDefinitionNodeMap map[string]interface{}
 		index++
 	}
 
-	return functionBody{
+	return FunctionBody{
 		BodyContent:   sourceString[functionBodyStartIndex+1 : index-1],
 		IndexInSource: indexInSource,
 	}

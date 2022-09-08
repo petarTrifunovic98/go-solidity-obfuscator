@@ -13,29 +13,29 @@ import (
 	"time"
 )
 
-type FunctionBody struct {
-	bodyContent   string
-	indexInSource int
-}
+// type FunctionBody struct {
+// 	bodyContent   string
+// 	indexInSource int
+// }
 
-type FunctionDefinition struct {
-	body                        FunctionBody
-	parameterNames              []string
-	retParameterTypes           []string
-	independentStatements       []string
-	topLevelDeclarationsIndexes []int
-}
+// type FunctionDefinition struct {
+// 	body                        FunctionBody
+// 	parameterNames              []string
+// 	retParameterTypes           []string
+// 	independentStatements       []string
+// 	topLevelDeclarationsIndexes []int
+// }
 
-type FunctionCall struct {
-	name          string
-	args          []string
-	indexInSource int
-	callLen       int
-}
+// type FunctionCall struct {
+// 	name          string
+// 	args          []string
+// 	indexInSource int
+// 	callLen       int
+// }
 
-type ManipulatedFunction struct {
-	body FunctionBody
-}
+// type ManipulatedFunction struct {
+// 	body FunctionBody
+// }
 
 func checkElseStmtFollows(code string) bool {
 	code = strings.TrimSpace(code)
@@ -94,25 +94,25 @@ func findIndependentStatements(functionBody string) map[int]string {
 	return statements
 }
 
-func (mf *ManipulatedFunction) replaceFunctionParametersWithArguments(functionParameters []string, functionArguments []string) {
-	body := mf.body
+func replaceFunctionParametersWithArguments(functionBody string, functionParameters []string, functionArguments []string) string {
+	newBody, _ := helpers.CopyString(functionBody)
 
 	i := 0
 	for _, parameter := range functionParameters {
 		re, _ := regexp.Compile("\\b" + parameter + "\\b")
-		body.bodyContent = re.ReplaceAllString(body.bodyContent, functionArguments[i])
+		newBody = re.ReplaceAllString(newBody, functionArguments[i])
 		i++
 	}
 
-	mf.body = body
+	return newBody
 }
 
-func (mf *ManipulatedFunction) replaceReturnStmtWithVariables(retVarNames []string, retParameterTypes []string) {
-	bodyContent := mf.body.bodyContent
+func replaceReturnStmtWithVariables(functionBody string, retVarNames []string, retParameterTypes []string) string {
+	newBody, _ := helpers.CopyString(functionBody)
 	re, _ := regexp.Compile("\\breturn\\b")
-	retStmtIndexes := re.FindAllStringIndex(bodyContent, -1)
+	retStmtIndexes := re.FindAllStringIndex(newBody, -1)
 	if retStmtIndexes == nil {
-		return
+		return newBody
 	}
 
 	stringIncrease := 0
@@ -123,11 +123,11 @@ func (mf *ManipulatedFunction) replaceReturnStmtWithVariables(retVarNames []stri
 	for _, indexPair := range retStmtIndexes {
 		retStmtStartIndex := indexPair[0]
 		retStmtEndIndex := retStmtStartIndex
-		for bodyContent[retStmtEndIndex] != ';' {
+		for newBody[retStmtEndIndex] != ';' {
 			retStmtEndIndex++
 		}
 
-		retValuesList := strings.Split(bodyContent[retStmtStartIndex+len("return")+stringIncrease:retStmtEndIndex+stringIncrease], ",;")
+		retValuesList := strings.Split(newBody[retStmtStartIndex+len("return")+stringIncrease:retStmtEndIndex+stringIncrease], ",;")
 
 		if len(retValuesList) > 0 {
 			insertString = "\n{\n"
@@ -144,22 +144,23 @@ func (mf *ManipulatedFunction) replaceReturnStmtWithVariables(retVarNames []stri
 			insertString += "}\n"
 		}
 
-		bodyContent = prependString + bodyContent[:retStmtStartIndex+stringIncrease] + insertString + bodyContent[retStmtEndIndex+stringIncrease+1:]
+		newBody = prependString + newBody[:retStmtStartIndex+stringIncrease] + insertString + newBody[retStmtEndIndex+stringIncrease+1:]
 		stringIncrease += len(insertString) + len(prependString)
 		fullPrependLen += len(prependString)
 
 	}
 
-	bodyContent = bodyContent[:fullPrependLen] + "\n{\n" + bodyContent[fullPrependLen:] + "\n}\n"
+	newBody = newBody[:fullPrependLen] + "\n{\n" + newBody[fullPrependLen:] + "\n}\n"
 
-	mf.body.bodyContent = bodyContent
+	return newBody
 }
 
-func (mf *ManipulatedFunction) insertOpaquePredicates(uselessArrayNames [2]string, topLevelDeclIndexes []int) {
-	independentStatements := findIndependentStatements(mf.body.bodyContent)
+func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessArrayNames [2]string, topLevelDeclIndexes []int) string {
+	newBody, _ := helpers.CopyString(functionBody)
+	independentStatements := findIndependentStatements(newBody)
 
 	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
-	realBodyIndexInSource := mf.body.indexInSource + sourceCodeChangeInfo.NumToAddToSearch(mf.body.indexInSource)
+	realBodyIndexInSource := bodyIndexInSource + sourceCodeChangeInfo.NumToAddToSearch(bodyIndexInSource)
 
 	topLevelDeclarations := make([]string, 0)
 
@@ -167,14 +168,14 @@ func (mf *ManipulatedFunction) insertOpaquePredicates(uselessArrayNames [2]strin
 		realTopLevelDeclIndex := topLevelDeclIndex + sourceCodeChangeInfo.NumToAddToSearch(topLevelDeclIndex)
 		declIndexInBody := realTopLevelDeclIndex - realBodyIndexInSource
 		i := declIndexInBody
-		for mf.body.bodyContent[i] != ';' {
+		for newBody[i] != ';' {
 			i++
 		}
 		fmt.Println("###############")
 		fmt.Print(declIndexInBody)
 		fmt.Print(": ")
-		fmt.Println(mf.body.bodyContent[declIndexInBody-1 : i+1])
-		topLevelDeclarations = append(topLevelDeclarations, mf.body.bodyContent[declIndexInBody-1:i+1])
+		fmt.Println(newBody[declIndexInBody-1 : i+1])
+		topLevelDeclarations = append(topLevelDeclarations, newBody[declIndexInBody-1:i+1])
 		if stmt, ok := independentStatements[declIndexInBody-1]; ok {
 			delete(independentStatements, declIndexInBody-1)
 			fmt.Println(stmt)
@@ -201,7 +202,7 @@ func (mf *ManipulatedFunction) insertOpaquePredicates(uselessArrayNames [2]strin
 	independentStatementsLen := len(independentStatements)
 
 	if independentStatementsLen < 2 {
-		return
+		return newBody
 	}
 
 	randomSeeder := rand.NewSource(time.Now().UnixNano())
@@ -273,10 +274,11 @@ func (mf *ManipulatedFunction) insertOpaquePredicates(uselessArrayNames [2]strin
 		ifStmt += "\n}\n"
 	}
 
-	body := linkedDeclarations + firstArrayDeclaration + secondArrayDeclaration + ifStmt
-	fmt.Println(body)
+	newBody = linkedDeclarations + firstArrayDeclaration + secondArrayDeclaration + ifStmt
+	fmt.Println(newBody)
 	fmt.Println("---------------------")
 
+	return newBody
 }
 
 func ManipulateDefinedFunctionBodies() {
@@ -284,7 +286,12 @@ func ManipulateDefinedFunctionBodies() {
 	// contract := contractprovider.SolidityContractInstance()
 	// jsonAST := contract.GetJsonCompactAST()
 	// sourceCodeString := contract.GetSourceCode()
-	// functionDefinitions := extractAllFunctionDefinitions(jsonAST, sourceCodeString)
+	// functionInfo := processinformation.FunctionInformation()
+	// functionDefinitions := functionInfo.ExtractAllFunctionDefinitions(jsonAST, sourceCodeString)
+
+	// for _, functionDefinition := range functionDefinitions {
+	// 	newBody, _ := functionDefinition.Body.BodyContent
+	// }
 
 }
 
@@ -326,13 +333,14 @@ func ManipulateCalledFunctionsBodies() string {
 			functionDef = functionInfo.ExtractFunctionDefinition(jsonAST, functionCall.Name, originalSourceString)
 		}
 		if functionDef != nil {
-			manipulatedFuncBodyContent, _ := helpers.CopyString(functionDef.Body.BodyContent)
-			manipulatedFunc := ManipulatedFunction{
-				body: FunctionBody{
-					bodyContent:   manipulatedFuncBodyContent,
-					indexInSource: functionDef.Body.IndexInSource,
-				},
-			}
+			newBodyContent, _ := helpers.CopyString(functionDef.Body.BodyContent)
+			newBodyIndex := functionDef.Body.IndexInSource
+			// manipulatedFunc := ManipulatedFunction{
+			// 	body: FunctionBody{
+			// 		bodyContent:   manipulatedFuncBodyContent,
+			// 		indexInSource: functionDef.Body.IndexInSource,
+			// 	},
+			// }
 
 			var arrNames [2]string
 			newVarName := variableInfo.GetLatestDashVariableName() + "_"
@@ -344,8 +352,8 @@ func ManipulateCalledFunctionsBodies() string {
 				newVarName += "_"
 			}
 
-			manipulatedFunc.insertOpaquePredicates(arrNames, functionDef.TopLevelDeclarationsIndexes)
-			manipulatedFunc.replaceFunctionParametersWithArguments(functionDef.ParameterNames, functionCall.Args)
+			newBodyContent = insertOpaquePredicates(newBodyContent, newBodyIndex, arrNames, functionDef.TopLevelDeclarationsIndexes)
+			newBodyContent = replaceFunctionParametersWithArguments(newBodyContent, functionDef.ParameterNames, functionCall.Args)
 			retVarNames := make([]string, len(functionDef.RetParameterTypes))
 			for i := 0; i < len(functionDef.RetParameterTypes); i++ {
 				for variableInfo.NameIsUsed(newVarName) {
@@ -353,7 +361,7 @@ func ManipulateCalledFunctionsBodies() string {
 				}
 				retVarNames[i] = newVarName
 			}
-			manipulatedFunc.replaceReturnStmtWithVariables(retVarNames, functionDef.RetParameterTypes)
+			newBodyContent = replaceReturnStmtWithVariables(newBodyContent, retVarNames, functionDef.RetParameterTypes)
 
 			funcCallStart := functionCall.IndexInSource
 			funcCallEnd := functionCall.IndexInSource + functionCall.CallLen
@@ -362,8 +370,8 @@ func ManipulateCalledFunctionsBodies() string {
 			for sourceCodeString[i] != ';' && sourceCodeString[i] != '{' && sourceCodeString[i] != '}' {
 				i--
 			}
-			sourceCodeString = sourceCodeString[:i+1] + manipulatedFunc.body.bodyContent + sourceCodeString[i+1:]
-			sourceCodeChangeInfo.ReportSourceCodeChange(i+1, len(manipulatedFunc.body.bodyContent))
+			sourceCodeString = sourceCodeString[:i+1] + newBodyContent + sourceCodeString[i+1:]
+			sourceCodeChangeInfo.ReportSourceCodeChange(i+1, len(newBodyContent))
 
 			insertString := "("
 			for ind, varName := range retVarNames {
