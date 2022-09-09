@@ -17,8 +17,9 @@ type FunctionDefinition struct {
 	Body                        FunctionBody
 	ParameterNames              []string
 	RetParameterTypes           []string
-	IndependentStatements       []string
 	TopLevelDeclarationsIndexes []int
+	TopLevelDeclarations        [][2]int
+	IndependentStatements       [][2]int
 }
 
 type FunctionCall struct {
@@ -167,6 +168,7 @@ func (fi *functionInformation) ExtractAllFunctionDefinitions(jsonAST map[string]
 			body := findFunctionDefinitionBody(functionDefinitionNode, sourceCode)
 			parameterNames := findFunctionParametersNames(functionDefinitionNode)
 			retParameterNames := findFunctionRetParameterTypes(functionDefinitionNode)
+			independentStmts, topLevelDeclarations := findFunctionStatementsAndDeclarations(functionDefinitionNode)
 			topLevelDeclarationsIndexes := findFunctionTopLevelDeclarationStatements(functionDefinitionNode)
 
 			fi.functionDefinitions[name] = &FunctionDefinition{
@@ -175,6 +177,8 @@ func (fi *functionInformation) ExtractAllFunctionDefinitions(jsonAST map[string]
 				ParameterNames:              parameterNames,
 				RetParameterTypes:           retParameterNames,
 				TopLevelDeclarationsIndexes: topLevelDeclarationsIndexes,
+				TopLevelDeclarations:        topLevelDeclarations,
+				IndependentStatements:       independentStmts,
 			}
 		}
 	}
@@ -293,6 +297,28 @@ func findFunctionRetParameterTypes(functionDefinitionNodeMap map[string]interfac
 	}
 
 	return retParametersTypesList
+}
+
+func findFunctionStatementsAndDeclarations(functionDefinitionNodeMap map[string]interface{}) ([][2]int, [][2]int) {
+	bodyField := functionDefinitionNodeMap["body"].(map[string]interface{})
+	statementsList := bodyField["statements"].([]interface{})
+	independentStmts := make([][2]int, 0)
+	topLevelDecls := make([][2]int, 0)
+
+	for _, statementInterface := range statementsList {
+		statementMap := statementInterface.(map[string]interface{})
+		statementSrc := statementMap["src"].(string)
+		statementSrcParts := strings.Split(statementSrc, ":")
+		statementStart, _ := strconv.Atoi(statementSrcParts[0])
+		statementLen, _ := strconv.Atoi(statementSrcParts[1])
+		if statementMap["nodeType"].(string) == "VariableDeclarationStatement" {
+			topLevelDecls = append(topLevelDecls, [2]int{statementStart, statementLen})
+		} else {
+			independentStmts = append(independentStmts, [2]int{statementStart, statementLen})
+		}
+	}
+
+	return independentStmts, topLevelDecls
 }
 
 func findFunctionTopLevelDeclarationStatements(functionDefinitionNodeMap map[string]interface{}) []int {

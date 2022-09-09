@@ -13,56 +13,6 @@ import (
 	"time"
 )
 
-func checkElseStmtFollows(code string) bool {
-	code = strings.TrimSpace(code)
-	if len(code) < 5 {
-		return false
-	}
-	codeToTest := code[0:5]
-	matched, _ := regexp.MatchString(`else\s`, codeToTest)
-	return matched
-}
-
-func findIndependentStatements(functionBody string) map[int]string {
-	referentBodyCopy, _ := helpers.CopyString(functionBody)
-	bodyCopy, _ := helpers.CopyString(functionBody)
-
-	statements := make(map[int]string, 0)
-
-	stmtStart := 0
-	parenthesesCounter := 0
-	whitespaceDiff := 0
-
-	for ind, character := range bodyCopy {
-		if character == ';' && parenthesesCounter == 0 && !checkElseStmtFollows(bodyCopy[ind+1:]) {
-			independentStmt := strings.TrimSpace(bodyCopy[stmtStart : ind+1])
-			i := 0
-			for referentBodyCopy[stmtStart+i] != independentStmt[0] {
-				i++
-			}
-			whitespaceDiff = i
-			statements[stmtStart+whitespaceDiff] = strings.TrimSpace(bodyCopy[stmtStart : ind+1])
-			stmtStart = ind + 1
-		} else if character == '{' {
-			parenthesesCounter++
-		} else if character == '}' {
-			parenthesesCounter--
-			if parenthesesCounter == 0 && !checkElseStmtFollows(bodyCopy[ind+1:]) {
-				independentStmt := strings.TrimSpace(bodyCopy[stmtStart : ind+1])
-				i := 0
-				for referentBodyCopy[stmtStart+i] != independentStmt[0] {
-					i++
-				}
-				whitespaceDiff = i
-				statements[stmtStart+whitespaceDiff] = strings.TrimSpace(bodyCopy[stmtStart : ind+1])
-				stmtStart = ind + 1
-			}
-		}
-	}
-
-	return statements
-}
-
 func replaceFunctionParametersWithArguments(functionBody string, functionParameters []string, functionArguments []string) string {
 	newBody, _ := helpers.CopyString(functionBody)
 
@@ -124,39 +74,34 @@ func replaceReturnStmtWithVariables(functionBody string, retVarNames []string, r
 	return newBody
 }
 
-func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessArrayNames [2]string, topLevelDeclIndexes []int) string {
+func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessArrayNames [2]string, topLevelDecls [][2]int, independentStmts [][2]int) string {
 	newBody, _ := helpers.CopyString(functionBody)
-	independentStatements := findIndependentStatements(newBody)
 
 	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
 	realBodyIndexInSource := bodyIndexInSource + sourceCodeChangeInfo.NumToAddToSearch(bodyIndexInSource)
 
 	topLevelDeclarations := make([]string, 0)
+	independentStatements := make([]string, 0)
 
-	for _, topLevelDeclIndex := range topLevelDeclIndexes {
-		realTopLevelDeclIndex := topLevelDeclIndex + sourceCodeChangeInfo.NumToAddToSearch(topLevelDeclIndex)
+	for _, topLevelDeclParameters := range topLevelDecls {
+		realTopLevelDeclIndex := topLevelDeclParameters[0] + sourceCodeChangeInfo.NumToAddToSearch(topLevelDeclParameters[0])
 		declIndexInBody := realTopLevelDeclIndex - realBodyIndexInSource
-		i := declIndexInBody
-		for newBody[i] != ';' {
-			i++
+		topLevelDeclString := functionBody[declIndexInBody : declIndexInBody+topLevelDeclParameters[1]]
+		if functionBody[declIndexInBody+topLevelDeclParameters[1]] == ';' {
+			topLevelDeclString += ";"
 		}
-		topLevelDeclarations = append(topLevelDeclarations, newBody[declIndexInBody:i+1])
-		if _, ok := independentStatements[declIndexInBody]; ok {
-			delete(independentStatements, declIndexInBody)
-		}
+		topLevelDeclarations = append(topLevelDeclarations, topLevelDeclString)
 	}
 
-	independentStmtsKeys := make([]int, 0)
-	for key := range independentStatements {
-		independentStmtsKeys = append(independentStmtsKeys, key)
+	for _, independentStmtParameters := range independentStmts {
+		realIndependentStmtIndex := independentStmtParameters[0] + sourceCodeChangeInfo.NumToAddToSearch(independentStmtParameters[0])
+		stmtIndexInBody := realIndependentStmtIndex - realBodyIndexInSource
+		independentStmtString := functionBody[stmtIndexInBody : stmtIndexInBody+independentStmtParameters[1]]
+		if functionBody[stmtIndexInBody+independentStmtParameters[1]] == ';' {
+			independentStmtString += ";"
+		}
+		independentStatements = append(independentStatements, independentStmtString)
 	}
-	sort.Ints(independentStmtsKeys)
-
-	independentStmtsList := make([]string, 0)
-	for _, key := range independentStmtsKeys {
-		independentStmtsList = append(independentStmtsList, independentStatements[key])
-	}
-	fmt.Println("independents: ", independentStmtsList, "len: ", len(independentStatements))
 
 	independentStatementsLen := len(independentStatements)
 
@@ -164,21 +109,24 @@ func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessA
 		return newBody
 	}
 
+	fmt.Println("Indeps: ", independentStatements)
+	fmt.Println("Decls: ", topLevelDeclarations)
+
 	randomSeeder := rand.NewSource(time.Now().UnixNano())
 	randomGenerator := rand.New(randomSeeder)
 
 	var statementsSplitIndex1 int
 	var statementsSplitIndex2 int
 
-	if independentStatementsLen == 2 {
-		statementsSplitIndex1 = 2
-	} else {
-		statementsSplitIndex1 = randomGenerator.Intn(independentStatementsLen) + 1
+	// if independentStatementsLen == 2 {
+	// 	statementsSplitIndex1 = 2
+	// } else {
+	statementsSplitIndex1 = randomGenerator.Intn(independentStatementsLen) + 1
+	statementsSplitIndex2 = randomGenerator.Intn(independentStatementsLen) + 1
+	for statementsSplitIndex1 == statementsSplitIndex2 {
 		statementsSplitIndex2 = randomGenerator.Intn(independentStatementsLen) + 1
-		for statementsSplitIndex1 == statementsSplitIndex2 {
-			statementsSplitIndex2 = randomGenerator.Intn(independentStatementsLen) + 1
-		}
 	}
+	//}
 
 	var linkedDeclarations string
 	for _, declaration := range topLevelDeclarations {
@@ -204,19 +152,22 @@ func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessA
 	randomIndex := randomGenerator.Intn(arraySize)
 	ifStmt := "if (" + uselessArrayNames[0] + "[" + strconv.Itoa(randomIndex) + "] % 2 == 0) {"
 	for i := 0; i < statementsSplitIndex1; i++ {
-		ifStmt += independentStmtsList[i]
+		// ifStmt += independentStmtsList[i]
+		ifStmt += independentStatements[i]
 	}
 	ifStmt += "\n}\n"
 	ifStmt += "else {"
 	for i := 0; i < statementsSplitIndex2; i++ {
-		ifStmt += independentStmtsList[i]
+		// ifStmt += independentStmtsList[i]
+		ifStmt += independentStatements[i]
 	}
 	ifStmt += "\n}\n"
 
 	if statementsSplitIndex1 < independentStatementsLen {
 		ifStmt += "if (" + uselessArrayNames[1] + "[" + strconv.Itoa(randomIndex) + "] % 2 == 0) {"
 		for i := statementsSplitIndex1; i < independentStatementsLen; i++ {
-			ifStmt += independentStmtsList[i]
+			// ifStmt += independentStmtsList[i]
+			ifStmt += independentStatements[i]
 		}
 		ifStmt += "\n}\n"
 	}
@@ -228,7 +179,8 @@ func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessA
 			ifStmt += "if (" + uselessArrayNames[1] + "[" + strconv.Itoa(randomIndex) + "] % 2 != 0) {"
 		}
 		for i := statementsSplitIndex2; i < independentStatementsLen; i++ {
-			ifStmt += independentStmtsList[i]
+			// ifStmt += independentStmtsList[i]
+			ifStmt += independentStatements[i]
 		}
 		ifStmt += "\n}\n"
 	}
@@ -269,7 +221,7 @@ func ManipulateDefinedFunctionBodies() string {
 			newVarName += "_"
 		}
 
-		newBodyContent = insertOpaquePredicates(newBodyContent, newBodyIndex, arrNames, functionDefinition.TopLevelDeclarationsIndexes)
+		newBodyContent = insertOpaquePredicates(newBodyContent, newBodyIndex, arrNames, functionDefinition.TopLevelDeclarations, functionDefinition.IndependentStatements)
 		fmt.Println("newBody:", newBodyContent)
 		fmt.Println("oldBody:", functionDefinition.Body.BodyContent)
 		numToAdd := sourceCodeChangeInfo.NumToAddToSearch(newBodyIndex)
