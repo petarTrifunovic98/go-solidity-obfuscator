@@ -13,20 +13,21 @@ type FunctionBody struct {
 }
 
 type FunctionDefinition struct {
-	Name                        string
-	Body                        FunctionBody
-	ParameterNames              []string
-	RetParameterTypes           []string
-	TopLevelDeclarationsIndexes []int
-	TopLevelDeclarations        [][2]int
-	IndependentStatements       [][2]int
+	Name                  string
+	Body                  FunctionBody
+	ParameterNames        []string
+	RetParameterTypes     []string
+	TopLevelDeclarations  [][2]int
+	IndependentStatements [][2]int
 }
 
 type FunctionCall struct {
-	Name          string
-	Args          []string
-	IndexInSource int
-	CallLen       int
+	Name                string
+	ArgsOld             []string
+	Args                [][2]int
+	IndexInSource       int
+	CallLen             int
+	CallingFunctionName string
 }
 
 type functionInformation struct {
@@ -64,35 +65,42 @@ func (fi *functionInformation) GetSpecificFunctionDefinition(name string) (*Func
 func (fi *functionInformation) ExtractFunctionCalls(jsonAST map[string]interface{}, sourceString string) []*FunctionCall {
 	nodes := jsonAST["nodes"]
 	fi.functionCalls = make([]*FunctionCall, 0)
-	fi.functionCalls = fi.storeFunctionCalls(nodes, sourceString)
+	var functionDef string
+	fi.functionCalls = fi.storeFunctionCalls(nodes, sourceString, functionDef)
 	fmt.Println(fi.functionCalls)
 	return fi.functionCalls
 }
 
-func (fi *functionInformation) storeFunctionCalls(node interface{}, sourceString string) []*FunctionCall {
+func (fi *functionInformation) storeFunctionCalls(node interface{}, sourceString string, latestFunctionDef string) []*FunctionCall {
 	switch node.(type) {
 	case []interface{}:
 		nodeArr := node.([]interface{})
 		for _, element := range nodeArr {
-			fi.functionCalls = fi.storeFunctionCalls(element, sourceString)
+			fi.functionCalls = fi.storeFunctionCalls(element, sourceString, latestFunctionDef)
 		}
 	case map[string]interface{}:
 		nodeMap := node.(map[string]interface{})
+		if fieldType, ok := nodeMap["nodeType"]; ok && fieldType == "FunctionDefinition" {
+			latestFunctionDef = nodeMap["name"].(string)
+		}
 		for key, value := range nodeMap {
 			if key == "nodeType" && value == "FunctionCall" {
 				expressionNode := nodeMap["expression"]
 				expressionNodeMap := expressionNode.(map[string]interface{})
 				functionName := expressionNodeMap["name"].(string)
-				argsList := findFunctionCallArgumentValues(nodeMap, sourceString)
+				argsList := findFunctionCallArgumentValuesOld(nodeMap, sourceString)
+				args := findFunctionCallArgumentValues(nodeMap)
 				functionSrc := nodeMap["src"].(string)
 				functionSrcParts := strings.Split(functionSrc, ":")
 				functionStartIndex, _ := strconv.Atoi(functionSrcParts[0])
 				functionCallLen, _ := strconv.Atoi(functionSrcParts[1])
 				functionCall := FunctionCall{
-					Name:          functionName,
-					Args:          argsList,
-					IndexInSource: functionStartIndex,
-					CallLen:       functionCallLen,
+					Name:                functionName,
+					ArgsOld:             argsList,
+					Args:                args,
+					IndexInSource:       functionStartIndex,
+					CallLen:             functionCallLen,
+					CallingFunctionName: latestFunctionDef,
 				}
 				fi.functionCalls = append(fi.functionCalls, &functionCall)
 
@@ -101,7 +109,7 @@ func (fi *functionInformation) storeFunctionCalls(node interface{}, sourceString
 				_, okMap := value.(map[string]interface{})
 
 				if okArr || okMap {
-					fi.functionCalls = fi.storeFunctionCalls(value, sourceString)
+					fi.functionCalls = fi.storeFunctionCalls(value, sourceString, latestFunctionDef)
 				}
 			}
 		}
@@ -110,7 +118,7 @@ func (fi *functionInformation) storeFunctionCalls(node interface{}, sourceString
 	return fi.functionCalls
 }
 
-func findFunctionCallArgumentValues(functionCallNodeMap map[string]interface{}, sourceString string) []string {
+func findFunctionCallArgumentValuesOld(functionCallNodeMap map[string]interface{}, sourceString string) []string {
 	argumentsList := functionCallNodeMap["arguments"].([]interface{})
 
 	argumentValuesList := make([]string, 0)
@@ -128,6 +136,24 @@ func findFunctionCallArgumentValues(functionCallNodeMap map[string]interface{}, 
 	return argumentValuesList
 }
 
+func findFunctionCallArgumentValues(functionCallNodeMap map[string]interface{}) [][2]int {
+	argumentsList := functionCallNodeMap["arguments"].([]interface{})
+
+	argumentsIndexesList := make([][2]int, 0)
+
+	for _, argumentInterface := range argumentsList {
+		argumentMap := argumentInterface.(map[string]interface{})
+		argumentSrc := argumentMap["src"].(string)
+		argumentSrcParts := strings.Split(argumentSrc, ":")
+		argumentStart, _ := strconv.Atoi(argumentSrcParts[0])
+		argumentLen, _ := strconv.Atoi(argumentSrcParts[1])
+
+		argumentsIndexesList = append(argumentsIndexesList, [2]int{argumentStart, argumentLen})
+	}
+
+	return argumentsIndexesList
+}
+
 func (fi *functionInformation) ExtractFunctionDefinition(jsonAST map[string]interface{}, functionName string, sourceString string) *FunctionDefinition {
 	node := jsonAST["nodes"]
 	functionDefinitionNode := findFunctionDefinitionNode(node, functionName)
@@ -139,16 +165,15 @@ func (fi *functionInformation) ExtractFunctionDefinition(jsonAST map[string]inte
 	body := findFunctionDefinitionBody(functionDefinitionNode, sourceString)
 	parametersNames := findFunctionParametersNames(functionDefinitionNode)
 	retParametersNames := findFunctionRetParameterTypes(functionDefinitionNode)
-	topLevelDeclarationsIndexes := findFunctionTopLevelDeclarationStatements(functionDefinitionNode)
-	//independentStatements := findIndependentStatements(body)
+	independentStmts, topLevelDeclarations := findFunctionStatementsAndDeclarations(functionDefinitionNode)
 
 	functionDefinition := FunctionDefinition{
-		Name:                        functionName,
-		Body:                        body,
-		ParameterNames:              parametersNames,
-		RetParameterTypes:           retParametersNames,
-		TopLevelDeclarationsIndexes: topLevelDeclarationsIndexes,
-		//independentStatements: independentStatements,
+		Name:                  functionName,
+		Body:                  body,
+		ParameterNames:        parametersNames,
+		RetParameterTypes:     retParametersNames,
+		TopLevelDeclarations:  topLevelDeclarations,
+		IndependentStatements: independentStmts,
 	}
 
 	fi.functionDefinitions[functionName] = &functionDefinition
@@ -164,21 +189,18 @@ func (fi *functionInformation) ExtractAllFunctionDefinitions(jsonAST map[string]
 	for _, functionDefinitionNode := range functionDefinitionNodes {
 		if functionDefinitionNode != nil {
 			name := functionDefinitionNode["name"].(string)
-			fmt.Println("name: ", name)
 			body := findFunctionDefinitionBody(functionDefinitionNode, sourceCode)
 			parameterNames := findFunctionParametersNames(functionDefinitionNode)
 			retParameterNames := findFunctionRetParameterTypes(functionDefinitionNode)
 			independentStmts, topLevelDeclarations := findFunctionStatementsAndDeclarations(functionDefinitionNode)
-			topLevelDeclarationsIndexes := findFunctionTopLevelDeclarationStatements(functionDefinitionNode)
 
 			fi.functionDefinitions[name] = &FunctionDefinition{
-				Name:                        name,
-				Body:                        body,
-				ParameterNames:              parameterNames,
-				RetParameterTypes:           retParameterNames,
-				TopLevelDeclarationsIndexes: topLevelDeclarationsIndexes,
-				TopLevelDeclarations:        topLevelDeclarations,
-				IndependentStatements:       independentStmts,
+				Name:                  name,
+				Body:                  body,
+				ParameterNames:        parameterNames,
+				RetParameterTypes:     retParameterNames,
+				TopLevelDeclarations:  topLevelDeclarations,
+				IndependentStatements: independentStmts,
 			}
 		}
 	}
@@ -313,30 +335,13 @@ func findFunctionStatementsAndDeclarations(functionDefinitionNodeMap map[string]
 		statementLen, _ := strconv.Atoi(statementSrcParts[1])
 		if statementMap["nodeType"].(string) == "VariableDeclarationStatement" {
 			topLevelDecls = append(topLevelDecls, [2]int{statementStart, statementLen})
+
+			//REMOVE
+			//independentStmts = append(independentStmts, [2]int{statementStart, statementLen})
 		} else {
 			independentStmts = append(independentStmts, [2]int{statementStart, statementLen})
 		}
 	}
 
 	return independentStmts, topLevelDecls
-}
-
-func findFunctionTopLevelDeclarationStatements(functionDefinitionNodeMap map[string]interface{}) []int {
-	bodyField := functionDefinitionNodeMap["body"].(map[string]interface{})
-	statementsList := bodyField["statements"].([]interface{})
-	ret := make([]int, 0)
-
-	for _, statementInterface := range statementsList {
-		statementMap := statementInterface.(map[string]interface{})
-		if statementMap["nodeType"].(string) == "VariableDeclarationStatement" {
-			statementSrc := statementMap["src"].(string)
-			statementSrcParts := strings.Split(statementSrc, ":")
-			statementStart, _ := strconv.Atoi(statementSrcParts[0])
-			adjustedStatementStart := statementStart
-			ret = append(ret, adjustedStatementStart)
-		}
-	}
-
-	return ret
-
 }

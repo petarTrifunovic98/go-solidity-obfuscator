@@ -13,13 +13,24 @@ import (
 	"time"
 )
 
-func replaceFunctionParametersWithArguments(functionBody string, functionParameters []string, functionArguments []string) string {
+func replaceFunctionParametersWithArguments(functionBody string, sourceString string, functionParameters []string, functionArguments []string,
+	functionArgs [][2]int) string {
+	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
+
+	argumentsList := make([]string, 0)
+
+	for _, argsDetails := range functionArgs {
+		reallArgIndex := argsDetails[0] + sourceCodeChangeInfo.NumToAddToSearch(argsDetails[0])
+		argString := sourceString[reallArgIndex : reallArgIndex+argsDetails[1]]
+		argumentsList = append(argumentsList, argString)
+	}
+
 	newBody, _ := helpers.CopyString(functionBody)
 
 	i := 0
 	for _, parameter := range functionParameters {
 		re, _ := regexp.Compile("\\b" + parameter + "\\b")
-		newBody = re.ReplaceAllString(newBody, functionArguments[i])
+		newBody = re.ReplaceAllString(newBody, argumentsList[i])
 		i++
 	}
 
@@ -47,6 +58,7 @@ func replaceReturnStmtWithVariables(functionBody string, retVarNames []string, r
 		}
 
 		retValuesList := strings.Split(newBody[retStmtStartIndex+len("return")+stringIncrease:retStmtEndIndex+stringIncrease], ",;")
+		//fmt.Println("Done ret value split: ", retValuesList)
 
 		if len(retValuesList) > 0 {
 			insertString = "\n{\n"
@@ -118,20 +130,19 @@ func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessA
 	var statementsSplitIndex1 int
 	var statementsSplitIndex2 int
 
-	// if independentStatementsLen == 2 {
-	// 	statementsSplitIndex1 = 2
-	// } else {
 	statementsSplitIndex1 = randomGenerator.Intn(independentStatementsLen) + 1
 	statementsSplitIndex2 = randomGenerator.Intn(independentStatementsLen) + 1
 	for statementsSplitIndex1 == statementsSplitIndex2 {
 		statementsSplitIndex2 = randomGenerator.Intn(independentStatementsLen) + 1
 	}
-	//}
 
 	var linkedDeclarations string
 	for _, declaration := range topLevelDeclarations {
 		linkedDeclarations += declaration + "\n"
 	}
+
+	//REMOVE
+	//linkedDeclarations = ""
 
 	//replace "7" with a declared constant
 	arraySize := randomGenerator.Intn(7) + 1
@@ -152,13 +163,11 @@ func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessA
 	randomIndex := randomGenerator.Intn(arraySize)
 	ifStmt := "if (" + uselessArrayNames[0] + "[" + strconv.Itoa(randomIndex) + "] % 2 == 0) {"
 	for i := 0; i < statementsSplitIndex1; i++ {
-		// ifStmt += independentStmtsList[i]
 		ifStmt += independentStatements[i]
 	}
 	ifStmt += "\n}\n"
 	ifStmt += "else {"
 	for i := 0; i < statementsSplitIndex2; i++ {
-		// ifStmt += independentStmtsList[i]
 		ifStmt += independentStatements[i]
 	}
 	ifStmt += "\n}\n"
@@ -166,7 +175,6 @@ func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessA
 	if statementsSplitIndex1 < independentStatementsLen {
 		ifStmt += "if (" + uselessArrayNames[1] + "[" + strconv.Itoa(randomIndex) + "] % 2 == 0) {"
 		for i := statementsSplitIndex1; i < independentStatementsLen; i++ {
-			// ifStmt += independentStmtsList[i]
 			ifStmt += independentStatements[i]
 		}
 		ifStmt += "\n}\n"
@@ -179,7 +187,6 @@ func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessA
 			ifStmt += "if (" + uselessArrayNames[1] + "[" + strconv.Itoa(randomIndex) + "] % 2 != 0) {"
 		}
 		for i := statementsSplitIndex2; i < independentStatementsLen; i++ {
-			// ifStmt += independentStmtsList[i]
 			ifStmt += independentStatements[i]
 		}
 		ifStmt += "\n}\n"
@@ -311,7 +318,7 @@ func ManipulateCalledFunctionsBodies() string {
 			}
 
 			//newBodyContent = insertOpaquePredicates(newBodyContent, newBodyIndex, arrNames, functionDef.TopLevelDeclarationsIndexes)
-			newBodyContent = replaceFunctionParametersWithArguments(newBodyContent, functionDef.ParameterNames, functionCall.Args)
+			newBodyContent = replaceFunctionParametersWithArguments(newBodyContent, sourceCodeString, functionDef.ParameterNames, functionCall.ArgsOld, functionCall.Args)
 			retVarNames := make([]string, len(functionDef.RetParameterTypes))
 			for i := 0; i < len(functionDef.RetParameterTypes); i++ {
 				for variableInfo.NameIsUsed(newVarName) {
