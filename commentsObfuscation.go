@@ -19,10 +19,14 @@ func ReplaceComments() string {
 	blockEnds := reEndBlock.FindAllStringIndex(sourceCodeString, -1)
 
 	stringReduction := 0
+	blockStartsIndex := 0
 
-	for i := 0; i < len(blockStarts); i++ {
-		sourceCodeString = sourceCodeString[:blockStarts[i][0]-stringReduction] + sourceCodeString[blockEnds[i][1]-stringReduction:]
-		stringReduction += blockEnds[i][1] - blockStarts[i][0]
+	for i := 0; i < len(blockEnds); i++ {
+		sourceCodeString = sourceCodeString[:blockStarts[blockStartsIndex][0]-stringReduction] + sourceCodeString[blockEnds[i][1]-stringReduction:]
+		stringReduction += blockEnds[i][1] - blockStarts[blockStartsIndex][0]
+		for blockStartsIndex < len(blockStarts) && blockStarts[blockStartsIndex][0] <= blockEnds[i][1] {
+			blockStartsIndex++
+		}
 	}
 
 	contract.SetSourceCode(sourceCodeString)
