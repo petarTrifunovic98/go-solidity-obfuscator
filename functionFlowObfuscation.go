@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"regexp"
 	contractprovider "solidity-obfuscator/contractProvider"
 	"solidity-obfuscator/helpers"
@@ -9,213 +10,39 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
-type FunctionDefinition struct {
-	body              string
-	parameterNames    []string
-	retParameterTypes []string
-}
+func replaceFunctionParametersWithArguments(functionBody string, sourceString string, functionParameters []string, functionArguments []string,
+	functionArgs [][2]int) string {
+	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
 
-type FunctionCall struct {
-	name          string
-	args          []string
-	indexInSource int
-	callLen       int
-}
+	argumentsList := make([]string, 0)
 
-type ManipulatedFunction struct {
-	body string
-}
-
-func getFunctionCalls(jsonAST map[string]interface{}, sourceString string) []*FunctionCall {
-
-	nodes := jsonAST["nodes"]
-	functionsCalls := make([]*FunctionCall, 0)
-	functionsCalls = storeFunctionCalls(nodes, functionsCalls, sourceString)
-	return functionsCalls
-}
-
-func storeFunctionCalls(node interface{}, functionsCalls []*FunctionCall, sourceString string) []*FunctionCall {
-	switch node.(type) {
-	case []interface{}:
-		nodeArr := node.([]interface{})
-		for _, element := range nodeArr {
-			functionsCalls = storeFunctionCalls(element, functionsCalls, sourceString)
-		}
-	case map[string]interface{}:
-		nodeMap := node.(map[string]interface{})
-		for key, value := range nodeMap {
-			if key == "nodeType" && value == "FunctionCall" {
-				expressionNode := nodeMap["expression"]
-				expressionNodeMap := expressionNode.(map[string]interface{})
-				functionName := expressionNodeMap["name"].(string)
-				argsList := findFunctionCallArgumentValues(nodeMap, sourceString)
-				functionSrc := nodeMap["src"].(string)
-				functionSrcParts := strings.Split(functionSrc, ":")
-				functionStartIndex, _ := strconv.Atoi(functionSrcParts[0])
-				functionCallLen, _ := strconv.Atoi(functionSrcParts[1])
-				functionCall := FunctionCall{
-					name:          functionName,
-					args:          argsList,
-					indexInSource: functionStartIndex,
-					callLen:       functionCallLen,
-				}
-				functionsCalls = append(functionsCalls, &functionCall)
-
-			} else {
-				_, okArr := value.([]interface{})
-				_, okMap := value.(map[string]interface{})
-
-				if okArr || okMap {
-					functionsCalls = storeFunctionCalls(value, functionsCalls, sourceString)
-				}
-			}
-		}
+	for _, argsDetails := range functionArgs {
+		reallArgIndex := argsDetails[0] + sourceCodeChangeInfo.NumToAddToSearch(argsDetails[0])
+		argString := sourceString[reallArgIndex : reallArgIndex+argsDetails[1]]
+		argumentsList = append(argumentsList, argString)
 	}
 
-	return functionsCalls
-}
-
-func findFunctionDefinitionNode(node interface{}, functionName string) map[string]interface{} {
-	switch node.(type) {
-	case []interface{}:
-		nodeArr := node.([]interface{})
-		for _, element := range nodeArr {
-			res := findFunctionDefinitionNode(element, functionName)
-			if res != nil {
-				return res
-			}
-		}
-	case map[string]interface{}:
-		nodeMap := node.(map[string]interface{})
-		for key, value := range nodeMap {
-			if key == "nodeType" && value == "FunctionDefinition" {
-				if name, ok := nodeMap["name"]; ok && name.(string) == functionName {
-					return nodeMap
-				}
-			} else {
-				_, okArr := value.([]interface{})
-				_, okMap := value.(map[string]interface{})
-
-				if okArr || okMap {
-					res := findFunctionDefinitionNode(value, functionName)
-					if res != nil {
-						return res
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func findFunctionDefinitionBody(functionDefinitionNode map[string]interface{}, sourceString string) string {
-	nameLocationField := functionDefinitionNode["nameLocation"]
-	nameLocationFieldParts := strings.Split((nameLocationField.(string)), ":")
-	functionDefinitionStart, _ := strconv.Atoi(nameLocationFieldParts[0])
-	sourceString = sourceString[functionDefinitionStart:]
-	functionBodyStartIndex := strings.Index(sourceString, "{")
-	index := functionBodyStartIndex + 1
-	counter := 1
-
-	for counter > 0 {
-		if sourceString[index] == '{' {
-			counter++
-		} else if sourceString[index] == '}' {
-			counter--
-		}
-		index++
-	}
-
-	return sourceString[functionBodyStartIndex+1 : index-1]
-}
-
-func findFunctionParametersNames(functionDefinitionNode map[string]interface{}) []string {
-	parametersField := functionDefinitionNode["parameters"].(map[string]interface{})
-	parametersList := parametersField["parameters"]
-
-	parameterNamesList := make([]string, 0)
-
-	for _, parameterInterface := range parametersList.([]interface{}) {
-		parameterMap := parameterInterface.(map[string]interface{})
-		parameterNamesList = append(parameterNamesList, parameterMap["name"].(string))
-	}
-
-	return parameterNamesList
-}
-
-func findFunctionRetParameterTypes(functionDefinitionNode map[string]interface{}) []string {
-	retParametersField := functionDefinitionNode["returnParameters"].(map[string]interface{})
-	retParametersList := retParametersField["parameters"]
-
-	retParametersTypesList := make([]string, 0)
-
-	for _, retParameterInterface := range retParametersList.([]interface{}) {
-		retParameterMap := retParameterInterface.(map[string]interface{})
-		retParameterTypeDesc := retParameterMap["typeDescriptions"].(map[string]interface{})
-		retParametersTypesList = append(retParametersTypesList, retParameterTypeDesc["typeString"].(string))
-	}
-
-	return retParametersTypesList
-}
-
-func findFunctionCallArgumentValues(functionCallNodeMap map[string]interface{}, sourceString string) []string {
-	argumentsList := functionCallNodeMap["arguments"].([]interface{})
-
-	argumentValuesList := make([]string, 0)
-
-	for _, argumentInterface := range argumentsList {
-		argumentMap := argumentInterface.(map[string]interface{})
-		argumentSrc := argumentMap["src"].(string)
-		argumentSrcParts := strings.Split(argumentSrc, ":")
-		argumentStart, _ := strconv.Atoi(argumentSrcParts[0])
-		argumentLen, _ := strconv.Atoi(argumentSrcParts[1])
-
-		argumentValuesList = append(argumentValuesList, sourceString[argumentStart:argumentStart+argumentLen])
-	}
-
-	return argumentValuesList
-}
-
-func extractFunctionDefinition(node interface{}, functionName string, sourceString string) *FunctionDefinition {
-	functionDefinitionNode := findFunctionDefinitionNode(node, functionName)
-	if functionDefinitionNode == nil {
-		return nil
-	}
-
-	body := findFunctionDefinitionBody(functionDefinitionNode, sourceString)
-	parametersNames := findFunctionParametersNames(functionDefinitionNode)
-	retParametersNames := findFunctionRetParameterTypes(functionDefinitionNode)
-
-	functionDefinition := FunctionDefinition{
-		body:              body,
-		parameterNames:    parametersNames,
-		retParameterTypes: retParametersNames,
-	}
-
-	return &functionDefinition
-}
-
-func (mf *ManipulatedFunction) replaceFunctionParametersWithArguments(functionParameters []string, functionArguments []string) {
-	body := mf.body
+	newBody, _ := helpers.CopyString(functionBody)
 
 	i := 0
 	for _, parameter := range functionParameters {
 		re, _ := regexp.Compile("\\b" + parameter + "\\b")
-		body = re.ReplaceAllString(body, functionArguments[i])
+		newBody = re.ReplaceAllString(newBody, argumentsList[i])
 		i++
 	}
 
-	mf.body = body
+	return newBody
 }
 
-func (mf *ManipulatedFunction) replaceReturnStmtWithVariables(retVarNames []string, retParameterTypes []string) {
-	body := mf.body
+func replaceReturnStmtWithVariables(functionBody string, retVarNames []string, retParameterTypes []string) string {
+	newBody, _ := helpers.CopyString(functionBody)
 	re, _ := regexp.Compile("\\breturn\\b")
-	retStmtIndexes := re.FindAllStringIndex(body, -1)
+	retStmtIndexes := re.FindAllStringIndex(newBody, -1)
 	if retStmtIndexes == nil {
-		return
+		return newBody
 	}
 
 	stringIncrease := 0
@@ -226,11 +53,12 @@ func (mf *ManipulatedFunction) replaceReturnStmtWithVariables(retVarNames []stri
 	for _, indexPair := range retStmtIndexes {
 		retStmtStartIndex := indexPair[0]
 		retStmtEndIndex := retStmtStartIndex
-		for body[retStmtEndIndex] != ';' {
+		for newBody[retStmtEndIndex] != ';' {
 			retStmtEndIndex++
 		}
 
-		retValuesList := strings.Split(body[retStmtStartIndex+len("return")+stringIncrease:retStmtEndIndex+stringIncrease], ",;")
+		retValuesList := strings.Split(newBody[retStmtStartIndex+len("return")+stringIncrease:retStmtEndIndex+stringIncrease], ",;")
+		//fmt.Println("Done ret value split: ", retValuesList)
 
 		if len(retValuesList) > 0 {
 			insertString = "\n{\n"
@@ -247,15 +75,196 @@ func (mf *ManipulatedFunction) replaceReturnStmtWithVariables(retVarNames []stri
 			insertString += "}\n"
 		}
 
-		body = prependString + body[:retStmtStartIndex+stringIncrease] + insertString + body[retStmtEndIndex+stringIncrease+1:]
+		newBody = prependString + newBody[:retStmtStartIndex+stringIncrease] + insertString + newBody[retStmtEndIndex+stringIncrease+1:]
 		stringIncrease += len(insertString) + len(prependString)
 		fullPrependLen += len(prependString)
 
 	}
 
-	body = body[:fullPrependLen] + "\n{\n" + body[fullPrependLen:] + "\n}\n"
+	newBody = newBody[:fullPrependLen] + "\n{\n" + newBody[fullPrependLen:] + "\n}\n"
 
-	mf.body = body
+	return newBody
+}
+
+func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessArrayNames [2]string, topLevelDecls [][2]int, independentStmts [][2]int) string {
+	newBody, _ := helpers.CopyString(functionBody)
+
+	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
+	realBodyIndexInSource := bodyIndexInSource + sourceCodeChangeInfo.NumToAddToSearch(bodyIndexInSource)
+
+	topLevelDeclarations := make([]string, 0)
+	independentStatements := make([]string, 0)
+
+	for _, topLevelDeclParameters := range topLevelDecls {
+		realTopLevelDeclIndex := topLevelDeclParameters[0] + sourceCodeChangeInfo.NumToAddToSearch(topLevelDeclParameters[0])
+		declIndexInBody := realTopLevelDeclIndex - realBodyIndexInSource
+		topLevelDeclString := functionBody[declIndexInBody : declIndexInBody+topLevelDeclParameters[1]]
+		if functionBody[declIndexInBody+topLevelDeclParameters[1]] == ';' {
+			topLevelDeclString += ";"
+		}
+		topLevelDeclarations = append(topLevelDeclarations, topLevelDeclString)
+	}
+
+	for _, independentStmtParameters := range independentStmts {
+		realIndependentStmtIndex := independentStmtParameters[0] + sourceCodeChangeInfo.NumToAddToSearch(independentStmtParameters[0])
+		stmtIndexInBody := realIndependentStmtIndex - realBodyIndexInSource
+		independentStmtString := functionBody[stmtIndexInBody : stmtIndexInBody+independentStmtParameters[1]]
+		if functionBody[stmtIndexInBody+independentStmtParameters[1]] == ';' {
+			independentStmtString += ";"
+		}
+		independentStatements = append(independentStatements, independentStmtString)
+	}
+
+	independentStatementsLen := len(independentStatements)
+
+	if independentStatementsLen < 2 {
+		return newBody
+	}
+
+	fmt.Println("Indeps: ", independentStatements)
+	fmt.Println("Decls: ", topLevelDeclarations)
+
+	randomSeeder := rand.NewSource(time.Now().UnixNano())
+	randomGenerator := rand.New(randomSeeder)
+
+	var statementsSplitIndex1 int
+	var statementsSplitIndex2 int
+
+	statementsSplitIndex1 = randomGenerator.Intn(independentStatementsLen) + 1
+	statementsSplitIndex2 = randomGenerator.Intn(independentStatementsLen) + 1
+	for statementsSplitIndex1 == statementsSplitIndex2 {
+		statementsSplitIndex2 = randomGenerator.Intn(independentStatementsLen) + 1
+	}
+
+	var linkedDeclarations string
+	for _, declaration := range topLevelDeclarations {
+		linkedDeclarations += declaration + "\n"
+	}
+
+	//REMOVE
+	//linkedDeclarations = ""
+
+	//replace "7" with a declared constant
+	arraySize := randomGenerator.Intn(7) + 1
+	firstArrayDeclaration := "uint" + "[" + strconv.Itoa(arraySize) + "] "
+	lenToCopy := len(firstArrayDeclaration)
+	firstArrayDeclaration += uselessArrayNames[0] + " = [uint("
+
+	//replace "20" with a declared constant
+	firstArrayDeclaration += strconv.Itoa(randomGenerator.Intn(20)) + ")"
+
+	for i := 1; i < arraySize; i++ {
+		firstArrayDeclaration += ", " + strconv.Itoa(randomGenerator.Intn(20))
+	}
+	firstArrayDeclaration += "];\n"
+
+	secondArrayDeclaration := firstArrayDeclaration[:lenToCopy] + uselessArrayNames[1] + " = " + uselessArrayNames[0] + ";\n"
+
+	randomIndex := randomGenerator.Intn(arraySize)
+	ifStmt := "if (" + uselessArrayNames[0] + "[" + strconv.Itoa(randomIndex) + "] % 2 == 0) {"
+	for i := 0; i < statementsSplitIndex1; i++ {
+		ifStmt += independentStatements[i]
+	}
+	ifStmt += "\n}\n"
+	ifStmt += "else {"
+	for i := 0; i < statementsSplitIndex2; i++ {
+		ifStmt += independentStatements[i]
+	}
+	ifStmt += "\n}\n"
+
+	if statementsSplitIndex1 < independentStatementsLen {
+		ifStmt += "if (" + uselessArrayNames[1] + "[" + strconv.Itoa(randomIndex) + "] % 2 == 0) {"
+		for i := statementsSplitIndex1; i < independentStatementsLen; i++ {
+			ifStmt += independentStatements[i]
+		}
+		ifStmt += "\n}\n"
+	}
+
+	if statementsSplitIndex2 < independentStatementsLen {
+		if statementsSplitIndex1 < independentStatementsLen {
+			ifStmt += "else {"
+		} else {
+			ifStmt += "if (" + uselessArrayNames[1] + "[" + strconv.Itoa(randomIndex) + "] % 2 != 0) {"
+		}
+		for i := statementsSplitIndex2; i < independentStatementsLen; i++ {
+			ifStmt += independentStatements[i]
+		}
+		ifStmt += "\n}\n"
+	}
+
+	newBody = linkedDeclarations + firstArrayDeclaration + secondArrayDeclaration + ifStmt
+
+	return newBody
+}
+
+func ManipulateDefinedFunctionBodies() string {
+	contract := contractprovider.SolidityContractInstance()
+	jsonAST := contract.GetJsonCompactAST()
+	sourceCodeString := contract.GetSourceCode()
+	functionInfo := processinformation.FunctionInformation()
+	functionDefinitions := functionInfo.ExtractAllFunctionDefinitions(jsonAST, sourceCodeString)
+	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
+
+	variableInfo := processinformation.VariableInformation()
+	namesSet := variableInfo.GetVariableNamesSet()
+	if namesSet == nil {
+		namesSet = getVarNames(jsonAST) //move to another place from VariableNameObfuscation.go
+		variableInfo.SetVariableNamesSet(namesSet)
+	}
+
+	var newVarName string
+
+	for _, functionDefinition := range functionDefinitions {
+		newBodyContent, _ := helpers.CopyString(functionDefinition.Body.BodyContent)
+		newBodyIndex := functionDefinition.Body.IndexInSource
+
+		var arrNames [2]string
+		newVarName = variableInfo.GetLatestDashVariableName() + "_"
+		for i := 0; i < 2; i++ {
+			for variableInfo.NameIsUsed(newVarName) {
+				newVarName += "_"
+			}
+			arrNames[i] = newVarName
+			newVarName += "_"
+		}
+
+		newBodyContent = insertOpaquePredicates(newBodyContent, newBodyIndex, arrNames, functionDefinition.TopLevelDeclarations, functionDefinition.IndependentStatements)
+		fmt.Println("newBody:", newBodyContent)
+		fmt.Println("oldBody:", functionDefinition.Body.BodyContent)
+		numToAdd := sourceCodeChangeInfo.NumToAddToSearch(newBodyIndex)
+		fmt.Println("numToAdd: ", numToAdd)
+		fmt.Println(functionDefinition.Name)
+		fmt.Println(newBodyIndex)
+		fmt.Println("oldScLen: ", len(sourceCodeString))
+		secondSourceCodeStringPart := sourceCodeString[newBodyIndex+numToAdd+len(functionDefinition.Body.BodyContent):]
+		sourceCodeString = sourceCodeString[:newBodyIndex+numToAdd] + newBodyContent + secondSourceCodeStringPart
+		fmt.Println("first intermediate sclen: ", len(sourceCodeString))
+		fmt.Println("second start index: ", newBodyIndex+numToAdd+len(functionDefinition.Body.BodyContent))
+		fmt.Println("second adition sclen: ", len(sourceCodeString[newBodyIndex+numToAdd+len(functionDefinition.Body.BodyContent):]))
+		fmt.Println("first intermediate sclen: ", len(sourceCodeString))
+		fmt.Println("scLen: ", len(sourceCodeString))
+
+		fmt.Println("newBodyLen: ", len(newBodyContent))
+		fmt.Println("oldBodyLen: ", len(functionDefinition.Body.BodyContent))
+		stringLenDiff := len(newBodyContent) - len(functionDefinition.Body.BodyContent)
+		smallerStringLen := len(functionDefinition.Body.BodyContent)
+		if stringLenDiff < 0 {
+			smallerStringLen = len(newBodyContent)
+		}
+		if stringLenDiff != 0 {
+			fmt.Println("inserting")
+			sourceCodeChangeInfo.ReportSourceCodeChange(newBodyIndex+numToAdd+1+smallerStringLen, stringLenDiff)
+		}
+		functionDefinition.Body.BodyContent = newBodyContent
+
+		sourceCodeChangeInfo.DisplayTree()
+
+		fmt.Println("-------------------")
+	}
+
+	variableInfo.SetLatestDashVariableName(newVarName)
+	contract.SetSourceCode(sourceCodeString)
+	return sourceCodeString
 }
 
 func ManipulateCalledFunctionsBodies() string {
@@ -263,17 +272,17 @@ func ManipulateCalledFunctionsBodies() string {
 	contract := contractprovider.SolidityContractInstance()
 	jsonAST := contract.GetJsonCompactAST()
 	sourceCodeString := contract.GetSourceCode()
-	functionCalls := getFunctionCalls(jsonAST, sourceCodeString)
+	functionInfo := processinformation.FunctionInformation()
+	functionCalls := functionInfo.GetFunctionCalls()
+	if functionCalls == nil {
+		functionCalls = functionInfo.ExtractFunctionCalls(jsonAST, sourceCodeString)
+	}
 
 	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
 
-	nodes := jsonAST["nodes"]
-
 	sort.Slice(functionCalls, func(i, j int) bool {
-		return functionCalls[i].indexInSource < functionCalls[j].indexInSource
+		return functionCalls[i].IndexInSource < functionCalls[j].IndexInSource
 	})
-
-	//stringIndexIncrease := 0
 
 	var sb strings.Builder
 	if _, err := sb.WriteString(sourceCodeString); err != nil {
@@ -281,7 +290,6 @@ func ManipulateCalledFunctionsBodies() string {
 		fmt.Println(err)
 		return ""
 	}
-
 	originalSourceString := sb.String()
 
 	variableInfo := processinformation.VariableInformation()
@@ -292,49 +300,43 @@ func ManipulateCalledFunctionsBodies() string {
 	}
 
 	for _, functionCall := range functionCalls {
-		//functionDef, exists := extractedFunctionDefinitions[functionCall.name]
-		//if !exists {
-		functionDef := extractFunctionDefinition(nodes, functionCall.name, originalSourceString)
-		//}
+		functionDef, exists := functionInfo.GetSpecificFunctionDefinition(functionCall.Name)
+		if !exists {
+			functionDef = functionInfo.ExtractFunctionDefinition(jsonAST, functionCall.Name, originalSourceString)
+		}
 		if functionDef != nil {
+			newBodyContent, _ := helpers.CopyString(functionDef.Body.BodyContent)
 
-			manipulatedFunc := ManipulatedFunction{}
-			manipulatedFunc.body, _ = helpers.CopyString(functionDef.body)
-
-			manipulatedFunc.replaceFunctionParametersWithArguments(functionDef.parameterNames, functionCall.args)
-			retVarNames := make([]string, len(functionDef.retParameterTypes))
-
+			var arrNames [2]string
 			newVarName := variableInfo.GetLatestDashVariableName() + "_"
+			for i := 0; i < 2; i++ {
+				for variableInfo.NameIsUsed(newVarName) {
+					newVarName += "_"
+				}
+				arrNames[i] = newVarName
+				newVarName += "_"
+			}
 
-			for i := 0; i < len(functionDef.retParameterTypes); i++ {
+			//newBodyContent = insertOpaquePredicates(newBodyContent, newBodyIndex, arrNames, functionDef.TopLevelDeclarationsIndexes)
+			newBodyContent = replaceFunctionParametersWithArguments(newBodyContent, sourceCodeString, functionDef.ParameterNames, functionCall.ArgsOld, functionCall.Args)
+			retVarNames := make([]string, len(functionDef.RetParameterTypes))
+			for i := 0; i < len(functionDef.RetParameterTypes); i++ {
 				for variableInfo.NameIsUsed(newVarName) {
 					newVarName += "_"
 				}
 				retVarNames[i] = newVarName
 			}
-			newVarName += "_"
+			newBodyContent = replaceReturnStmtWithVariables(newBodyContent, retVarNames, functionDef.RetParameterTypes)
 
-			manipulatedFunc.replaceReturnStmtWithVariables(retVarNames, functionDef.retParameterTypes)
-
-			funcCallStart := functionCall.indexInSource
-			funcCallEnd := functionCall.indexInSource + functionCall.callLen
-
+			funcCallStart := functionCall.IndexInSource
+			funcCallEnd := functionCall.IndexInSource + functionCall.CallLen
 			numToAdd := sourceCodeChangeInfo.NumToAddToSearch(funcCallStart)
-			// newSourceCodeIndex := funcCallStart + numToAdd
-
-			// i := funcCallStart + stringIndexIncrease
 			i := funcCallStart + numToAdd
-
-			// fmt.Print("i: ")
-			// fmt.Print(i)
-			// fmt.Print("; RBTreeWithDLList calculated i: ")
-			// fmt.Println(newSourceCodeIndex)
 			for sourceCodeString[i] != ';' && sourceCodeString[i] != '{' && sourceCodeString[i] != '}' {
 				i--
 			}
-			sourceCodeString = sourceCodeString[:i+1] + manipulatedFunc.body + sourceCodeString[i+1:]
-			//stringIndexIncrease += len(manipulatedFunc.body)
-			sourceCodeChangeInfo.ReportSourceCodeChange(i+1, len(manipulatedFunc.body))
+			sourceCodeString = sourceCodeString[:i+1] + newBodyContent + sourceCodeString[i+1:]
+			sourceCodeChangeInfo.ReportSourceCodeChange(i+1, len(newBodyContent))
 
 			insertString := "("
 			for ind, varName := range retVarNames {
@@ -346,34 +348,22 @@ func ManipulateCalledFunctionsBodies() string {
 			insertString += ")"
 
 			numToAdd = sourceCodeChangeInfo.NumToAddToSearch(funcCallStart)
-			// newSourceCodeIndex = funcCallStart + numToAdd
-			// fmt.Print("i: ")
-			// fmt.Print(funcCallStart + stringIndexIncrease)
-			// fmt.Print("; RBTreeWithDLList calculated i: ")
-			// fmt.Println(newSourceCodeIndex)
 
 			sourceCodeString = sourceCodeString[:funcCallStart+numToAdd] + insertString + sourceCodeString[funcCallEnd+numToAdd:]
-			stringLenDiff := len(insertString) - functionCall.callLen
-			smallerStringLen := functionCall.callLen
+			stringLenDiff := len(insertString) - functionCall.CallLen
+			smallerStringLen := functionCall.CallLen
 			if stringLenDiff < 0 {
 				smallerStringLen = len(insertString)
-				// fmt.Println("Smaller")
-			} /*else {
-				fmt.Println("Bigger")
-			}*/
+			}
 			if stringLenDiff != 0 {
 				sourceCodeChangeInfo.ReportSourceCodeChange(funcCallStart+numToAdd+smallerStringLen, stringLenDiff)
 			}
-			//stringIndexIncrease += len(insertString) - functionCall.callLen
 
 			variableInfo.SetLatestDashVariableName(newVarName)
 		}
 	}
 
 	sourceCodeChangeInfo.DisplayTree()
-
 	contract.SetSourceCode(sourceCodeString)
-
 	return sourceCodeString
-
 }

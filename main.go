@@ -120,10 +120,11 @@ func main() {
 	byteValue, _ = ioutil.ReadAll(sourceFile)
 	sourceString := string(byteValue)
 
-	sourceString = ManipulateCalledFunctionsBodies()
-	sourceString = ReplaceVarNames()
-	sourceString = ReplaceComments()
-	sourceString = ReplaceLiterals()
+	sourceString = ManipulateDefinedFunctionBodies()
+	//sourceString = ManipulateCalledFunctionsBodies()
+	//sourceString = ReplaceVarNames()
+	//sourceString = ReplaceComments()
+	//sourceString = ReplaceLiterals()
 
 	outputFile, errOutput := os.Create("../contract_examples/obfuscated2.sol")
 	defer outputFile.Close()
@@ -201,16 +202,16 @@ func main() {
 	// 	DlList: &dlList,
 	// }
 
-	// treeWithList.Insert(keyPair{1, 0}, spreadPair{3, 0}, traversal[keyPair])
-	// treeWithList.Insert(keyPair{7, 0}, spreadPair{4, 0}, traversal[keyPair])
-	// treeWithList.Insert(keyPair{13, 0}, spreadPair{1, 0}, traversal[keyPair])
-	// treeWithList.Insert(keyPair{16, 0}, spreadPair{3, 0}, traversal[keyPair])
-	// treeWithList.Insert(keyPair{21, 0}, spreadPair{1, 0}, traversal[keyPair])
+	// treeWithList.Insert(keyPair{3, 0}, spreadPair{-1, 0}, traversal[keyPair])
+	// treeWithList.Insert(keyPair{2, 0}, spreadPair{1, 0}, traversal[keyPair])
+	// //treeWithList.Insert(keyPair{2, 0}, spreadPair{1, 0}, traversal[keyPair])
+	// // treeWithList.Insert(keyPair{16, 0}, spreadPair{3, 0}, traversal[keyPair])
+	// // treeWithList.Insert(keyPair{21, 0}, spreadPair{1, 0}, traversal[keyPair])
 
-	// treeWithList.Insert(keyPair{5, 0}, spreadPair{2, 0}, traversal[keyPair])
-	// treeWithList.PrintCurrentState()
-	// fmt.Println()
-	// treeWithList.Insert(keyPair{14, 0}, spreadPair{-2, 0}, traversal[keyPair])
+	// // treeWithList.Insert(keyPair{5, 0}, spreadPair{2, 0}, traversal[keyPair])
+	// // treeWithList.PrintCurrentState()
+	// // fmt.Println()
+	// // treeWithList.Insert(keyPair{14, 0}, spreadPair{-2, 0}, traversal[keyPair])
 
 	// treeWithList.PrintCurrentState()
 }
