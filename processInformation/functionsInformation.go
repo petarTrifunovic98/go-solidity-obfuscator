@@ -315,7 +315,12 @@ func findFunctionRetParameterTypes(functionDefinitionNodeMap map[string]interfac
 	for _, retParameterInterface := range retParametersList.([]interface{}) {
 		retParameterMap := retParameterInterface.(map[string]interface{})
 		retParameterTypeDesc := retParameterMap["typeDescriptions"].(map[string]interface{})
-		retParametersTypesList = append(retParametersTypesList, retParameterTypeDesc["typeString"].(string))
+		retParameterType := retParameterTypeDesc["typeString"].(string)
+		retParameterStorageLocation := retParameterMap["storageLocation"].(string)
+		if retParameterStorageLocation != "default" {
+			retParameterType += " " + retParameterStorageLocation
+		}
+		retParametersTypesList = append(retParametersTypesList, retParameterType)
 	}
 
 	return retParametersTypesList

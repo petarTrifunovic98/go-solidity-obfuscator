@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
 	"regexp"
 	contractprovider "solidity-obfuscator/contractProvider"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -132,7 +132,6 @@ func getLiterals(jsonAST map[string]interface{}) []string {
 	nodes := jsonAST["nodes"]
 	literalsList := make([]string, 0)
 	literalsList = storeLiterals(nodes, literalsList)
-	fmt.Println(literalsList)
 	return literalsList
 }
 
@@ -147,8 +146,11 @@ func storeLiterals(node interface{}, literalsList []string) []string {
 		nodeMap := node.(map[string]interface{})
 		for key, value := range nodeMap {
 			if key == "nodeType" && value == "Literal" {
-				if value, ok := nodeMap["value"]; ok {
-					literalsList = append(literalsList, value.(string))
+				typeDescriptions := nodeMap["typeDescriptions"].(map[string]interface{})
+				if strings.Contains(typeDescriptions["typeString"].(string), "int_const") {
+					if value, ok := nodeMap["value"]; ok {
+						literalsList = append(literalsList, value.(string))
+					}
 				}
 			} else {
 				_, okArr := value.([]interface{})

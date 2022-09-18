@@ -146,7 +146,7 @@ func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessA
 
 	//replace "7" with a declared constant
 	arraySize := randomGenerator.Intn(7) + 1
-	firstArrayDeclaration := "uint" + "[" + strconv.Itoa(arraySize) + "] "
+	firstArrayDeclaration := "uint" + "[" + strconv.Itoa(arraySize) + "] memory "
 	lenToCopy := len(firstArrayDeclaration)
 	firstArrayDeclaration += uselessArrayNames[0] + " = [uint("
 
