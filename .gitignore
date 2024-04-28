@@ -21,4 +21,5 @@
 go.work
 
 .vscode/
-db*
+main
+*.sol
