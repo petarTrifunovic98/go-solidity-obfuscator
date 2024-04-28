@@ -1,7 +1,6 @@
 package processinfo
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/petarTrifunovic98/go-solidity-obfuscator/pkg/datastructs"
@@ -65,9 +64,6 @@ func traversal[T kp](node *datastructs.DLLNode) {
 		nodeRBTreeKey := any(nodeValue.MyRBTreeNode.Key).(keyPair)
 		newKey := keyPair{}
 		if nodeRBTreeKey.GetReducedLine() == 0 {
-			if newValue.realSpread == -2 {
-				fmt.Println(prevNodeValue.Value.(spreadPair))
-			}
 			newKey.currentLine = nodeRBTreeKey.GetCurrentLine()
 			newKey.reducedLine = newKey.currentLine - prevNodeValue.Value.(spreadPair).increasedSpread
 		} else {
