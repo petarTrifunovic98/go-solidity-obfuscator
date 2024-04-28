@@ -2,8 +2,9 @@ package main
 
 import (
 	"regexp"
-	contractprovider "solidity-obfuscator/contractProvider"
-	processinformation "solidity-obfuscator/processInformation"
+
+	contractprovider "github.com/petarTrifunovic98/go-solidity-obfuscator/contractProvider"
+	processinformation "github.com/petarTrifunovic98/go-solidity-obfuscator/processInformation"
 )
 
 func getVarNames(jsonAST map[string]interface{}) map[string]struct{} {
@@ -13,7 +14,7 @@ func getVarNames(jsonAST map[string]interface{}) map[string]struct{} {
 	return namesSet
 }
 
-//maybe move this function fo variableInformation
+// maybe move this function fo variableInformation
 func storeVarNames(node interface{}, namesSet map[string]struct{}) map[string]struct{} {
 	switch node.(type) {
 	case []interface{}:

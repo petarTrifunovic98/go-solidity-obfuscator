@@ -3,10 +3,11 @@ package main
 import (
 	"math/rand"
 	"regexp"
-	contractprovider "solidity-obfuscator/contractProvider"
 	"strconv"
 	"strings"
 	"time"
+
+	contractprovider "github.com/petarTrifunovic98/go-solidity-obfuscator/contractProvider"
 )
 
 type IntegerASTNode interface {

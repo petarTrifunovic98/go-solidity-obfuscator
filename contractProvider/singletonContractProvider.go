@@ -2,9 +2,10 @@ package contractprovider
 
 import (
 	"fmt"
-	"solidity-obfuscator/helpers"
 	"strings"
 	"sync"
+
+	"github.com/petarTrifunovic98/go-solidity-obfuscator/helpers"
 )
 
 type solidityContract struct {

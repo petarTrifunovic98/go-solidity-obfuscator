@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"math/rand"
 	"regexp"
-	contractprovider "solidity-obfuscator/contractProvider"
-	"solidity-obfuscator/helpers"
-	processinformation "solidity-obfuscator/processInformation"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	contractprovider "github.com/petarTrifunovic98/go-solidity-obfuscator/contractProvider"
+	"github.com/petarTrifunovic98/go-solidity-obfuscator/helpers"
+	processinformation "github.com/petarTrifunovic98/go-solidity-obfuscator/processInformation"
 )
 
 func replaceFunctionParametersWithArguments(functionBody string, sourceString string, functionParameters []string, functionArguments []string,

@@ -2,8 +2,9 @@ package processinformation
 
 import (
 	"fmt"
-	datastructs "solidity-obfuscator/dataStructs"
 	"sync"
+
+	datastructs "github.com/petarTrifunovic98/go-solidity-obfuscator/dataStructs"
 )
 
 type kp interface {

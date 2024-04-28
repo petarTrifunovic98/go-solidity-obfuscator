@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	datastructs "solidity-obfuscator/dataStructs"
+
+	datastructs "github.com/petarTrifunovic98/go-solidity-obfuscator/dataStructs"
 )
 
 type kp interface {
