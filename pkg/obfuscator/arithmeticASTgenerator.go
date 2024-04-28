@@ -1,4 +1,4 @@
-package main
+package obfuscator
 
 import (
 	"math/rand"
@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	contractprovider "github.com/petarTrifunovic98/go-solidity-obfuscator/contractProvider"
+	"github.com/petarTrifunovic98/go-solidity-obfuscator/pkg/contractprovider"
 )
 
 type IntegerASTNode interface {

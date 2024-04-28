@@ -1,10 +1,10 @@
-package main
+package obfuscator
 
 import (
 	"regexp"
 
-	contractprovider "github.com/petarTrifunovic98/go-solidity-obfuscator/contractProvider"
-	processinformation "github.com/petarTrifunovic98/go-solidity-obfuscator/processInformation"
+	"github.com/petarTrifunovic98/go-solidity-obfuscator/pkg/contractprovider"
+	"github.com/petarTrifunovic98/go-solidity-obfuscator/pkg/processinfo"
 )
 
 func getVarNames(jsonAST map[string]interface{}) map[string]struct{} {
@@ -49,7 +49,7 @@ func ReplaceVarNames() string {
 	jsonAST := contract.GetJsonCompactAST()
 	sourceCodeString := contract.GetSourceCode()
 
-	variableInfo := processinformation.VariableInformation()
+	variableInfo := processinfo.VariableInformation()
 	namesSet := variableInfo.GetVariableNamesSet()
 	if namesSet == nil {
 		namesSet = getVarNames(jsonAST)

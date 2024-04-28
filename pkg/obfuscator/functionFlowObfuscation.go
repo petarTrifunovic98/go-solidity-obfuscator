@@ -1,4 +1,4 @@
-package main
+package obfuscator
 
 import (
 	"fmt"
@@ -9,14 +9,14 @@ import (
 	"strings"
 	"time"
 
-	contractprovider "github.com/petarTrifunovic98/go-solidity-obfuscator/contractProvider"
-	"github.com/petarTrifunovic98/go-solidity-obfuscator/helpers"
-	processinformation "github.com/petarTrifunovic98/go-solidity-obfuscator/processInformation"
+	"github.com/petarTrifunovic98/go-solidity-obfuscator/pkg/contractprovider"
+	"github.com/petarTrifunovic98/go-solidity-obfuscator/pkg/helpers"
+	"github.com/petarTrifunovic98/go-solidity-obfuscator/pkg/processinfo"
 )
 
 func replaceFunctionParametersWithArguments(functionBody string, sourceString string, functionParameters []string, functionArguments []string,
 	functionArgs [][2]int) string {
-	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
+	sourceCodeChangeInfo := processinfo.SourceCodeChangeInformation()
 
 	argumentsList := make([]string, 0)
 
@@ -90,7 +90,7 @@ func replaceReturnStmtWithVariables(functionBody string, retVarNames []string, r
 func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessArrayNames [2]string, topLevelDecls [][2]int, independentStmts [][2]int) string {
 	newBody, _ := helpers.CopyString(functionBody)
 
-	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
+	sourceCodeChangeInfo := processinfo.SourceCodeChangeInformation()
 	realBodyIndexInSource := bodyIndexInSource + sourceCodeChangeInfo.NumToAddToSearch(bodyIndexInSource)
 
 	topLevelDeclarations := make([]string, 0)
@@ -206,11 +206,11 @@ func ManipulateDefinedFunctionBodies() string {
 	contract := contractprovider.SolidityContractInstance()
 	jsonAST := contract.GetJsonCompactAST()
 	sourceCodeString := contract.GetSourceCode()
-	functionInfo := processinformation.FunctionInformation()
+	functionInfo := processinfo.FunctionInformation()
 	functionDefinitions := functionInfo.ExtractAllFunctionDefinitions(jsonAST, sourceCodeString)
-	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
+	sourceCodeChangeInfo := processinfo.SourceCodeChangeInformation()
 
-	variableInfo := processinformation.VariableInformation()
+	variableInfo := processinfo.VariableInformation()
 	namesSet := variableInfo.GetVariableNamesSet()
 	if namesSet == nil {
 		namesSet = getVarNames(jsonAST) //move to another place from VariableNameObfuscation.go
@@ -277,13 +277,13 @@ func ManipulateCalledFunctionsBodies() string {
 	contract := contractprovider.SolidityContractInstance()
 	jsonAST := contract.GetJsonCompactAST()
 	sourceCodeString := contract.GetSourceCode()
-	functionInfo := processinformation.FunctionInformation()
+	functionInfo := processinfo.FunctionInformation()
 	functionCalls := functionInfo.GetFunctionCalls()
 	if functionCalls == nil {
 		functionCalls = functionInfo.ExtractFunctionCalls(jsonAST, sourceCodeString)
 	}
 
-	sourceCodeChangeInfo := processinformation.SourceCodeChangeInformation()
+	sourceCodeChangeInfo := processinfo.SourceCodeChangeInformation()
 
 	sort.Slice(functionCalls, func(i, j int) bool {
 		return functionCalls[i].IndexInSource < functionCalls[j].IndexInSource
@@ -297,7 +297,7 @@ func ManipulateCalledFunctionsBodies() string {
 	}
 	originalSourceString := sb.String()
 
-	variableInfo := processinformation.VariableInformation()
+	variableInfo := processinfo.VariableInformation()
 	namesSet := variableInfo.GetVariableNamesSet()
 	if namesSet == nil {
 		namesSet = getVarNames(jsonAST) //move to another place from VariableNameObfuscation.go

@@ -1,9 +1,9 @@
-package main
+package obfuscator
 
 import (
 	"regexp"
 
-	contractprovider "github.com/petarTrifunovic98/go-solidity-obfuscator/contractProvider"
+	"github.com/petarTrifunovic98/go-solidity-obfuscator/pkg/contractprovider"
 )
 
 func ReplaceComments() string {

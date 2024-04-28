@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/petarTrifunovic98/go-solidity-obfuscator/helpers"
+	"github.com/petarTrifunovic98/go-solidity-obfuscator/pkg/helpers"
 )
 
 type solidityContract struct {
