@@ -59,7 +59,6 @@ func replaceReturnStmtWithVariables(functionBody string, retVarNames []string, r
 		}
 
 		retValuesList := strings.Split(newBody[retStmtStartIndex+len("return")+stringIncrease:retStmtEndIndex+stringIncrease], ",;")
-		//fmt.Println("Done ret value split: ", retValuesList)
 
 		if len(retValuesList) > 0 {
 			insertString = "\n{\n"
@@ -121,9 +120,6 @@ func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessA
 	if independentStatementsLen < 2 {
 		return newBody
 	}
-
-	fmt.Println("Indeps: ", independentStatements)
-	fmt.Println("Decls: ", topLevelDeclarations)
 
 	randomSeeder := rand.NewSource(time.Now().UnixNano())
 	randomGenerator := rand.New(randomSeeder)
@@ -234,37 +230,19 @@ func ManipulateDefinedFunctionBodies() string {
 		}
 
 		newBodyContent = insertOpaquePredicates(newBodyContent, newBodyIndex, arrNames, functionDefinition.TopLevelDeclarations, functionDefinition.IndependentStatements)
-		fmt.Println("newBody:", newBodyContent)
-		fmt.Println("oldBody:", functionDefinition.Body.BodyContent)
 		numToAdd := sourceCodeChangeInfo.NumToAddToSearch(newBodyIndex)
-		fmt.Println("numToAdd: ", numToAdd)
-		fmt.Println(functionDefinition.Name)
-		fmt.Println(newBodyIndex)
-		fmt.Println("oldScLen: ", len(sourceCodeString))
 		secondSourceCodeStringPart := sourceCodeString[newBodyIndex+numToAdd+len(functionDefinition.Body.BodyContent):]
 		sourceCodeString = sourceCodeString[:newBodyIndex+numToAdd] + newBodyContent + secondSourceCodeStringPart
-		fmt.Println("first intermediate sclen: ", len(sourceCodeString))
-		fmt.Println("second start index: ", newBodyIndex+numToAdd+len(functionDefinition.Body.BodyContent))
-		fmt.Println("second adition sclen: ", len(sourceCodeString[newBodyIndex+numToAdd+len(functionDefinition.Body.BodyContent):]))
-		fmt.Println("first intermediate sclen: ", len(sourceCodeString))
-		fmt.Println("scLen: ", len(sourceCodeString))
-
-		fmt.Println("newBodyLen: ", len(newBodyContent))
-		fmt.Println("oldBodyLen: ", len(functionDefinition.Body.BodyContent))
 		stringLenDiff := len(newBodyContent) - len(functionDefinition.Body.BodyContent)
 		smallerStringLen := len(functionDefinition.Body.BodyContent)
 		if stringLenDiff < 0 {
 			smallerStringLen = len(newBodyContent)
 		}
 		if stringLenDiff != 0 {
-			fmt.Println("inserting")
 			sourceCodeChangeInfo.ReportSourceCodeChange(newBodyIndex+numToAdd+1+smallerStringLen, stringLenDiff)
 		}
 		functionDefinition.Body.BodyContent = newBodyContent
 
-		sourceCodeChangeInfo.DisplayTree()
-
-		fmt.Println("-------------------")
 	}
 
 	variableInfo.SetLatestDashVariableName(newVarName)
@@ -368,7 +346,7 @@ func ManipulateCalledFunctionsBodies() string {
 		}
 	}
 
-	sourceCodeChangeInfo.DisplayTree()
+	// sourceCodeChangeInfo.DisplayTree()
 	contract.SetSourceCode(sourceCodeString)
 	return sourceCodeString
 }
