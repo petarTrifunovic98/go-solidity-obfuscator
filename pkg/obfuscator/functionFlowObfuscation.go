@@ -14,7 +14,7 @@ import (
 	"github.com/petarTrifunovic98/go-solidity-obfuscator/pkg/processinfo"
 )
 
-func replaceFunctionParametersWithArguments(functionBody string, sourceString string, functionParameters []string, functionArguments []string,
+func replaceFunctionParametersWithArguments(functionBody string, sourceString string, functionParameters []string, /*functionArguments []string,*/
 	functionArgs [][2]int) string {
 	sourceCodeChangeInfo := processinfo.SourceCodeChangeInformation()
 
@@ -40,7 +40,7 @@ func replaceFunctionParametersWithArguments(functionBody string, sourceString st
 
 func replaceReturnStmtWithVariables(functionBody string, retVarNames []string, retParameterTypes []string) string {
 	newBody, _ := helpers.CopyString(functionBody)
-	re, _ := regexp.Compile("\\breturn\\b")
+	re, _ := regexp.Compile(`\breturn\b`)
 	retStmtIndexes := re.FindAllStringIndex(newBody, -1)
 	if retStmtIndexes == nil {
 		return newBody
@@ -323,7 +323,7 @@ func ManipulateCalledFunctionsBodies() string {
 			}
 
 			//newBodyContent = insertOpaquePredicates(newBodyContent, newBodyIndex, arrNames, functionDef.TopLevelDeclarationsIndexes)
-			newBodyContent = replaceFunctionParametersWithArguments(newBodyContent, sourceCodeString, functionDef.ParameterNames, functionCall.ArgsOld, functionCall.Args)
+			newBodyContent = replaceFunctionParametersWithArguments(newBodyContent, sourceCodeString, functionDef.ParameterNames /*functionCall.ArgsOld,*/, functionCall.Args)
 			retVarNames := make([]string, len(functionDef.RetParameterTypes))
 			for i := 0; i < len(functionDef.RetParameterTypes); i++ {
 				for variableInfo.NameIsUsed(newVarName) {

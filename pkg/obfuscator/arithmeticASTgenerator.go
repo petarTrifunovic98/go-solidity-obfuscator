@@ -136,20 +136,18 @@ func getLiterals(jsonAST map[string]interface{}) []string {
 	return literalsList
 }
 
-func storeLiterals(node interface{}, literalsList []string) []string {
-	switch node.(type) {
+func storeLiterals(nodeInterface interface{}, literalsList []string) []string {
+	switch node := nodeInterface.(type) {
 	case []interface{}:
-		nodeArr := node.([]interface{})
-		for _, element := range nodeArr {
+		for _, element := range node {
 			literalsList = storeLiterals(element, literalsList)
 		}
 	case map[string]interface{}:
-		nodeMap := node.(map[string]interface{})
-		for key, value := range nodeMap {
+		for key, value := range node {
 			if key == "nodeType" && value == "Literal" {
-				typeDescriptions := nodeMap["typeDescriptions"].(map[string]interface{})
+				typeDescriptions := node["typeDescriptions"].(map[string]interface{})
 				if strings.Contains(typeDescriptions["typeString"].(string), "int_const") {
-					if value, ok := nodeMap["value"]; ok {
+					if value, ok := node["value"]; ok {
 						literalsList = append(literalsList, value.(string))
 					}
 				}

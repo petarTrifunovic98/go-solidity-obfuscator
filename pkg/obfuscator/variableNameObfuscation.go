@@ -15,18 +15,16 @@ func getVarNames(jsonAST map[string]interface{}) map[string]struct{} {
 }
 
 // maybe move this function fo variableInformation
-func storeVarNames(node interface{}, namesSet map[string]struct{}) map[string]struct{} {
-	switch node.(type) {
+func storeVarNames(nodeInterface interface{}, namesSet map[string]struct{}) map[string]struct{} {
+	switch node := nodeInterface.(type) {
 	case []interface{}:
-		nodeArr := node.([]interface{})
-		for _, element := range nodeArr {
+		for _, element := range node {
 			namesSet = storeVarNames(element, namesSet)
 		}
 	case map[string]interface{}:
-		nodeMap := node.(map[string]interface{})
-		for key, value := range nodeMap {
+		for key, value := range node {
 			if key == "nodeType" && value == "VariableDeclaration" {
-				if name, ok := nodeMap["name"]; ok && name != "" {
+				if name, ok := node["name"]; ok && name != "" {
 					namesSet[name.(string)] = struct{}{}
 				}
 			} else {

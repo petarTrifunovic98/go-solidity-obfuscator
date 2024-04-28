@@ -71,26 +71,24 @@ func (fi *functionInformation) ExtractFunctionCalls(jsonAST map[string]interface
 	return fi.functionCalls
 }
 
-func (fi *functionInformation) storeFunctionCalls(node interface{}, sourceString string, latestFunctionDef string) []*FunctionCall {
-	switch node.(type) {
+func (fi *functionInformation) storeFunctionCalls(nodeInterface interface{}, sourceString string, latestFunctionDef string) []*FunctionCall {
+	switch node := nodeInterface.(type) {
 	case []interface{}:
-		nodeArr := node.([]interface{})
-		for _, element := range nodeArr {
+		for _, element := range node {
 			fi.functionCalls = fi.storeFunctionCalls(element, sourceString, latestFunctionDef)
 		}
 	case map[string]interface{}:
-		nodeMap := node.(map[string]interface{})
-		if fieldType, ok := nodeMap["nodeType"]; ok && fieldType == "FunctionDefinition" {
-			latestFunctionDef = nodeMap["name"].(string)
+		if fieldType, ok := node["nodeType"]; ok && fieldType == "FunctionDefinition" {
+			latestFunctionDef = node["name"].(string)
 		}
-		for key, value := range nodeMap {
+		for key, value := range node {
 			if key == "nodeType" && value == "FunctionCall" {
-				expressionNode := nodeMap["expression"]
+				expressionNode := node["expression"]
 				expressionNodeMap := expressionNode.(map[string]interface{})
 				functionName := expressionNodeMap["name"].(string)
-				argsList := findFunctionCallArgumentValuesOld(nodeMap, sourceString)
-				args := findFunctionCallArgumentValues(nodeMap)
-				functionSrc := nodeMap["src"].(string)
+				argsList := findFunctionCallArgumentValuesOld(node, sourceString)
+				args := findFunctionCallArgumentValues(node)
+				functionSrc := node["src"].(string)
 				functionSrcParts := strings.Split(functionSrc, ":")
 				functionStartIndex, _ := strconv.Atoi(functionSrcParts[0])
 				functionCallLen, _ := strconv.Atoi(functionSrcParts[1])
@@ -208,18 +206,16 @@ func (fi *functionInformation) ExtractAllFunctionDefinitions(jsonAST map[string]
 	return fi.functionDefinitions
 }
 
-func storeAllFunctionDefinitionNodes(node interface{}, functionNodes []map[string]interface{}) []map[string]interface{} {
-	switch node.(type) {
+func storeAllFunctionDefinitionNodes(nodeInterface interface{}, functionNodes []map[string]interface{}) []map[string]interface{} {
+	switch node := nodeInterface.(type) {
 	case []interface{}:
-		nodeArr := node.([]interface{})
-		for _, element := range nodeArr {
+		for _, element := range node {
 			functionNodes = storeAllFunctionDefinitionNodes(element, functionNodes)
 		}
 	case map[string]interface{}:
-		nodeMap := node.(map[string]interface{})
-		for key, value := range nodeMap {
+		for key, value := range node {
 			if key == "nodeType" && value == "FunctionDefinition" {
-				functionNodes = append(functionNodes, nodeMap)
+				functionNodes = append(functionNodes, node)
 			} else {
 				_, okArr := value.([]interface{})
 				_, okMap := value.(map[string]interface{})
@@ -234,22 +230,20 @@ func storeAllFunctionDefinitionNodes(node interface{}, functionNodes []map[strin
 	return functionNodes
 }
 
-func findFunctionDefinitionNode(node interface{}, functionName string) map[string]interface{} {
-	switch node.(type) {
+func findFunctionDefinitionNode(nodeInterface interface{}, functionName string) map[string]interface{} {
+	switch node := nodeInterface.(type) {
 	case []interface{}:
-		nodeArr := node.([]interface{})
-		for _, element := range nodeArr {
+		for _, element := range node {
 			res := findFunctionDefinitionNode(element, functionName)
 			if res != nil {
 				return res
 			}
 		}
 	case map[string]interface{}:
-		nodeMap := node.(map[string]interface{})
-		for key, value := range nodeMap {
+		for key, value := range node {
 			if key == "nodeType" && value == "FunctionDefinition" {
-				if name, ok := nodeMap["name"]; ok && name.(string) == functionName {
-					return nodeMap
+				if name, ok := node["name"]; ok && name.(string) == functionName {
+					return node
 				}
 			} else {
 				_, okArr := value.([]interface{})

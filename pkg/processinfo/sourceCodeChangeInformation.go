@@ -10,8 +10,8 @@ import (
 type kp interface {
 	GetCurrentLine() int
 	GetReducedLine() int
-	SetCurrentLine(int)
-	SetReducedLine(int)
+	// SetCurrentLine(int)
+	// SetReducedLine(int)
 }
 
 type keyPair struct {
@@ -27,14 +27,13 @@ func (k keyPair) GetReducedLine() int {
 	return k.reducedLine
 }
 
-func (k keyPair) SetCurrentLine(cl int) {
-	k.currentLine = cl
-}
+// func (k keyPair) SetCurrentLine(cl int) {
+// 	k.currentLine = cl
+// }
 
-func (k keyPair) SetReducedLine(rl int) {
-	k.reducedLine = rl
-	fmt.Println(k.reducedLine, rl)
-}
+// func (k keyPair) SetReducedLine(rl int) {
+// 	k.reducedLine = rl
+// }
 
 type spreadPair struct {
 	realSpread      int

@@ -2,18 +2,18 @@ package helpers
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 )
 
 func ReadJsonToMap(jsonFilePath string) (map[string]interface{}, error) {
 	jsonFile, errJson := os.Open(jsonFilePath)
-	defer jsonFile.Close()
 	if errJson != nil {
 		return nil, errJson
 	}
+	defer jsonFile.Close()
 
-	byteValue, _ := ioutil.ReadAll(jsonFile)
+	byteValue, _ := io.ReadAll(jsonFile)
 	var jsonMap map[string]interface{}
 	json.Unmarshal([]byte(byteValue), &jsonMap)
 
