@@ -1,6 +1,7 @@
 package contractprovider
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 	"sync"
@@ -20,21 +21,23 @@ var instance *solidityContract
 func SolidityContractInstance() *solidityContract {
 	once.Do(func() {
 
-		configFile, errConfig := helpers.ReadJsonToMap("./config/config.json")
-		if errConfig != nil {
-			fmt.Println(errConfig)
-			instance = nil
-			return
-		}
+		// configFile, errConfig := helpers.ReadJsonToMap("./config/config.json")
+		// if errConfig != nil {
+		// 	fmt.Println(errConfig)
+		// 	instance = nil
+		// 	return
+		// }
 
-		sourceCodeString, errSource := helpers.ReadFileToString(configFile["sourceCodePath"].(string))
+		// sourceCodeString, errSource := helpers.ReadFileToString(configFile["sourceCodePath"].(string))
+		sourceCodeString, errSource := helpers.ReadFileToString(flag.Arg(0))
 		if errSource != nil {
 			fmt.Println(errSource)
 			instance = nil
 			return
 		}
 
-		jsonCompactASTString, errJson := helpers.ReadJsonToMap(configFile["jsonCompactASTPath"].(string))
+		// jsonCompactASTString, errJson := helpers.ReadJsonToMap(configFile["jsonCompactASTPath"].(string))
+		jsonCompactASTString, errJson := helpers.ReadJsonToMap(flag.Arg(1))
 		if errJson != nil {
 			fmt.Println(errJson)
 			instance = nil

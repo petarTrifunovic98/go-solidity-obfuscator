@@ -1,9 +1,8 @@
 package main
 
 import (
-	"encoding/json"
+	"flag"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/petarTrifunovic98/go-solidity-obfuscator/pkg/obfuscator"
@@ -11,39 +10,38 @@ import (
 
 func main() {
 
-	jsonFile, errJson := os.Open("../contract_examples/contract_example_0813_2.sol_json.ast")
-	if errJson != nil {
-		fmt.Println(errJson)
-		return
+	outputPtr := flag.String("output", "./obfuscated.sol", "the path to the output file")
+	fobfType := flag.String("fobf", "opaque", `The type of function `+
+		`obfuscation to use. One of "opaque" (opaque predicates) and "inline" (inline `+
+		`called functions). Throws an error in other cases.`)
+
+	flag.Parse()
+
+	if flag.NArg() != 2 {
+		fmt.Println("requires two positional arguments - the contract (.sol) and the contract AST, in that order")
+		os.Exit(1)
 	}
-	defer jsonFile.Close()
 
-	byteValue, _ := io.ReadAll(jsonFile)
-	var jsonStringMap map[string]interface{}
-	json.Unmarshal([]byte(byteValue), &jsonStringMap)
-
-	sourceFile, errSource := os.Open("../contract_examples/contract_example_0813_2.sol")
-	if errSource != nil {
-		fmt.Println(errSource)
-		return
+	if *fobfType != "opaque" && *fobfType != "inline" {
+		fmt.Println(`fobf option must be equal to "opaque" or "inline"`)
+		os.Exit(1)
 	}
-	defer sourceFile.Close()
 
-	byteValue, _ = io.ReadAll(sourceFile)
-	sourceString := string(byteValue)
+	if *fobfType == "opaque" {
+		obfuscator.ManipulateDefinedFunctionBodies()
+	} else {
+		obfuscator.ManipulateCalledFunctionsBodies()
+	}
+	obfuscator.ReplaceVarNames()
+	obfuscator.ReplaceComments()
+	obfuscationResult := obfuscator.ReplaceLiterals()
 
-	sourceString = obfuscator.ManipulateDefinedFunctionBodies()
-	sourceString = obfuscator.ManipulateCalledFunctionsBodies()
-	sourceString = obfuscator.ReplaceVarNames()
-	sourceString = obfuscator.ReplaceComments()
-	sourceString = obfuscator.ReplaceLiterals()
-
-	outputFile, errOutput := os.Create("../contract_examples/contract_example_0813_2_obf.sol")
+	outputFile, errOutput := os.Create(*outputPtr)
 	if errOutput != nil {
 		fmt.Println(errOutput)
 		return
 	}
 	defer outputFile.Close()
 
-	outputFile.WriteString(sourceString)
+	outputFile.WriteString(obfuscationResult)
 }
