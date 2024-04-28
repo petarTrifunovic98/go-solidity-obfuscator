@@ -1,7 +1,6 @@
 package processinfo
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -67,7 +66,7 @@ func (fi *functionInformation) ExtractFunctionCalls(jsonAST map[string]interface
 	fi.functionCalls = make([]*FunctionCall, 0)
 	var functionDef string
 	fi.functionCalls = fi.storeFunctionCalls(nodes, sourceString, functionDef)
-	fmt.Println(fi.functionCalls)
+	// fmt.Println(fi.functionCalls)
 	return fi.functionCalls
 }
 
@@ -85,6 +84,9 @@ func (fi *functionInformation) storeFunctionCalls(nodeInterface interface{}, sou
 			if key == "nodeType" && value == "FunctionCall" {
 				expressionNode := node["expression"]
 				expressionNodeMap := expressionNode.(map[string]interface{})
+				if _, ok := expressionNodeMap["name"]; !ok {
+					continue
+				}
 				functionName := expressionNodeMap["name"].(string)
 				argsList := findFunctionCallArgumentValuesOld(node, sourceString)
 				args := findFunctionCallArgumentValues(node)
