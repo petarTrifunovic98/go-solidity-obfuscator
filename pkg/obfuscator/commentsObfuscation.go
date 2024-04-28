@@ -13,8 +13,8 @@ func ReplaceComments() string {
 	re, _ := regexp.Compile("//(.*)(\n)")
 	sourceCodeString = re.ReplaceAllString(sourceCodeString, "\n")
 
-	reStartBlock, _ := regexp.Compile("/\\*")
-	reEndBlock, _ := regexp.Compile("\\*/")
+	reStartBlock, _ := regexp.Compile(`/\*`)
+	reEndBlock, _ := regexp.Compile(`\*/`)
 
 	blockStarts := reStartBlock.FindAllStringIndex(sourceCodeString, -1)
 	blockEnds := reEndBlock.FindAllStringIndex(sourceCodeString, -1)

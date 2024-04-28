@@ -1,19 +1,19 @@
 package helpers
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 )
 
 func ReadFileToString(filePath string) (string, error) {
 	file, err := os.Open(filePath)
-	defer file.Close()
 	if err != nil {
 		return "", err
 	}
+	defer file.Close()
 
-	byteValue, _ := ioutil.ReadAll(file)
+	byteValue, _ := io.ReadAll(file)
 	fileString := string(byteValue)
 
 	return fileString, nil

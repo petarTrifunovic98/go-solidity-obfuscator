@@ -15,17 +15,17 @@ type RBNode[T any, D any] struct {
 	isBlack        bool
 }
 
-func (node *RBNode[T, D]) swapColor(withNode *RBNode[T, D]) error {
-	if withNode == nil {
-		return errors.New("Cannot swap colors with a nil node!")
-	}
+// func (node *RBNode[T, D]) swapColor(withNode *RBNode[T, D]) error {
+// 	if withNode == nil {
+// 		return errors.New("cannot swap colors with a nil node")
+// 	}
 
-	tempColor := node.isBlack
-	node.isBlack = withNode.isBlack
-	withNode.isBlack = tempColor
+// 	tempColor := node.isBlack
+// 	node.isBlack = withNode.isBlack
+// 	withNode.isBlack = tempColor
 
-	return nil
-}
+// 	return nil
+// }
 
 func (node *RBNode[T, D]) GetParent() *RBNode[T, D] {
 	return node.Parent
@@ -62,7 +62,7 @@ type RBTree[T any, D any] struct {
 
 func (tree *RBTree[T, D]) rightRotate(atNode *RBNode[T, D]) error {
 	if atNode == nil || atNode.leftChild == nil {
-		return errors.New("Illegal rotation! Either the node or its left child is nil!")
+		return errors.New("illegal rotation - either the node or its left child is nil")
 	}
 
 	parentNode := atNode.Parent
@@ -83,7 +83,7 @@ func (tree *RBTree[T, D]) rightRotate(atNode *RBNode[T, D]) error {
 
 func (tree *RBTree[T, D]) leftRotate(atNode *RBNode[T, D]) error {
 	if atNode == nil || atNode.rightChild == nil {
-		return errors.New("Illegal rotation! Either the node or its right child is nil!")
+		return errors.New("illegal rotation - either the node or its right child is nil")
 	}
 
 	parentNode := atNode.Parent
@@ -118,7 +118,7 @@ func (tree *RBTree[T, D]) replaceChild(parent *RBNode[T, D], newChild *RBNode[T,
 
 func (tree *RBTree[T, D]) adaptTreeToRBConditions(mainNode *RBNode[T, D]) {
 	tree.Root.isBlack = true
-	if mainNode == tree.Root || mainNode.isBlack == true || mainNode.Parent.isBlack == true {
+	if mainNode == tree.Root || mainNode.isBlack || mainNode.Parent.isBlack {
 		return
 	}
 
@@ -188,7 +188,7 @@ func (tree *RBTree[T, D]) Insert(node *RBNode[T, D]) *RBNode[T, D] {
 	}
 
 	node.isBlack = false
-	for true {
+	for {
 		parentNode = currentNode
 		if tree.Less(currentNode.Key, node.Key) {
 			currentNode = currentNode.rightChild
@@ -217,7 +217,7 @@ func (tree *RBTree[T, D]) FindBiggestSmallerOrEqual(key T) *RBNode[T, D] {
 	var latestSmallerNode *RBNode[T, D] = nil
 	currentNode := tree.Root
 
-	for true {
+	for {
 		if currentNode == nil {
 			return latestSmallerNode
 		} else if tree.Less(currentNode.Key, key) {
@@ -229,8 +229,6 @@ func (tree *RBTree[T, D]) FindBiggestSmallerOrEqual(key T) *RBNode[T, D] {
 			return currentNode
 		}
 	}
-
-	return latestSmallerNode
 }
 
 func InOrderTraversal[T any, D any](root *RBNode[T, D]) {
