@@ -160,8 +160,10 @@ func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessA
 
 	secondArrayDeclaration := firstArrayDeclaration[:lenToCopy] + uselessArrayNames[1] + " = " + uselessArrayNames[0] + ";\n"
 
-	randomIndex := randomGenerator.Intn(arraySize)
-	ifStmt := "if (" + uselessArrayNames[0] + "[" + strconv.Itoa(randomIndex) + "] % 2 == 0) {"
+	// randomIndex := randomGenerator.Intn(arraySize)
+	randomIndexStr := "uint(uint160(msg.sender)) % " + strconv.Itoa(arraySize)
+	// ifStmt := "if (" + uselessArrayNames[0] + "[" + strconv.Itoa(randomIndex) + "] % 2 == 0) {"
+	ifStmt := "if (" + uselessArrayNames[0] + "[" + randomIndexStr + "] % 2 == 0) {"
 	for i := 0; i < statementsSplitIndex1; i++ {
 		ifStmt += independentStatements[i]
 	}
@@ -173,7 +175,8 @@ func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessA
 	ifStmt += "\n}\n"
 
 	if statementsSplitIndex1 < independentStatementsLen {
-		ifStmt += "if (" + uselessArrayNames[1] + "[" + strconv.Itoa(randomIndex) + "] % 2 == 0) {"
+		// ifStmt += "if (" + uselessArrayNames[1] + "[" + strconv.Itoa(randomIndex) + "] % 2 == 0) {"
+		ifStmt += "if (" + uselessArrayNames[1] + "[" + randomIndexStr + "] % 2 == 0) {"
 		for i := statementsSplitIndex1; i < independentStatementsLen; i++ {
 			ifStmt += independentStatements[i]
 		}
@@ -184,7 +187,8 @@ func insertOpaquePredicates(functionBody string, bodyIndexInSource int, uselessA
 		if statementsSplitIndex1 < independentStatementsLen {
 			ifStmt += "else {"
 		} else {
-			ifStmt += "if (" + uselessArrayNames[1] + "[" + strconv.Itoa(randomIndex) + "] % 2 != 0) {"
+			// ifStmt += "if (" + uselessArrayNames[1] + "[" + strconv.Itoa(randomIndex) + "] % 2 != 0) {"
+			ifStmt += "if (" + uselessArrayNames[1] + "[" + randomIndexStr + "] % 2 != 0) {"
 		}
 		for i := statementsSplitIndex2; i < independentStatementsLen; i++ {
 			ifStmt += independentStatements[i]
